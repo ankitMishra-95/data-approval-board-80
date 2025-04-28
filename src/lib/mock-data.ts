@@ -1,18 +1,21 @@
 
 export interface DataItem {
   id: number;
-  name: string;
-  email: string;
+  workOrderNumber: string;
+  description: string;
+  requestedBy: string;
+  priority: "High" | "Medium" | "Low";
   department: string;
-  date: string;
+  dueDate: string;
+  assignedTo: string;
   status: string;
 }
 
-// Generate a list of mock data
 export function generateMockData(page: number, perPage: number) {
-  const total = 78; // Total number of items
+  const total = 78;
   const statusOptions = ['Pending', 'Approved', 'Rejected'];
-  const departmentOptions = ['Marketing', 'Finance', 'HR', 'Engineering', 'Operations', 'Customer Support'];
+  const priorityOptions = ['High', 'Medium', 'Low'];
+  const departmentOptions = ['Maintenance', 'Facilities', 'IT', 'Operations', 'Production', 'Quality'];
   
   const start = (page - 1) * perPage;
   const end = Math.min(start + perPage, total);
@@ -21,26 +24,27 @@ export function generateMockData(page: number, perPage: number) {
   
   for (let i = start; i < end; i++) {
     const id = i + 1;
-    const randomStatus = statusOptions[Math.floor(Math.random() * (statusOptions.length - 0.01))];
-    const randomDepartment = departmentOptions[Math.floor(Math.random() * (departmentOptions.length - 0.01))];
+    const randomStatus = statusOptions[Math.floor(Math.random() * statusOptions.length)];
+    const randomDepartment = departmentOptions[Math.floor(Math.random() * departmentOptions.length)];
+    const randomPriority = priorityOptions[Math.floor(Math.random() * priorityOptions.length)];
     
-    // Generate a random date within the past 30 days
-    const randomDaysAgo = Math.floor(Math.random() * 30);
     const date = new Date();
-    date.setDate(date.getDate() - randomDaysAgo);
+    date.setDate(date.getDate() + Math.floor(Math.random() * 14)); // Due dates within next 14 days
     const formattedDate = date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
     
-    // Create mock data item
     data.push({
       id,
-      name: `User ${id}`,
-      email: `user${id}@example.com`,
+      workOrderNumber: `WO-${String(id).padStart(4, '0')}`,
+      description: `Maintenance Task ${id}`,
+      requestedBy: `Employee ${id}`,
+      priority: randomPriority,
       department: randomDepartment,
-      date: formattedDate,
+      dueDate: formattedDate,
+      assignedTo: `Technician ${id % 5 + 1}`,
       status: randomStatus
     });
   }

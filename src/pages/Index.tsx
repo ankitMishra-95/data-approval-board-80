@@ -6,8 +6,8 @@ const Index = () => {
   return (
     <DashboardLayout>
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Data Approval Dashboard</h1>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+        <h1 className="text-2xl font-bold mb-6 text-blue-900">Work Orders Dashboard</h1>
+        <div className="bg-white rounded-lg shadow-sm border border-blue-100">
           <DataTable />
         </div>
       </div>
