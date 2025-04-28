@@ -78,41 +78,41 @@ export function DataTable() {
   return (
     <div className="w-full overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-blue-200">
-          <thead className="bg-blue-50">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Work Order</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Description</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Requested By</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Priority</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Department</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Due Date</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Status</th>
-              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-blue-800 uppercase tracking-wider">Actions</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Requested By</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Priority</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Department</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Due Date</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-blue-100">
+          <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
               Array.from({ length: itemsPerPage }).map((_, index) => (
                 <tr key={index} className="animate-pulse">
                   {Array.from({ length: 8 }).map((_, cellIndex) => (
                     <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
-                      <div className="h-4 bg-blue-100 rounded w-24"></div>
+                      <div className="h-4 bg-gray-100 rounded w-24"></div>
                     </td>
                   ))}
                 </tr>
               ))
             ) : (
               data.map((item) => (
-                <tr key={item.id} className="hover:bg-blue-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-900">{item.workOrderNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700">{item.requestedBy}</td>
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.workOrderNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.description}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.requestedBy}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getPriorityBadge(item.priority)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700">{item.department}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-700">{item.dueDate}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.department}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.dueDate}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getStatusBadge(item.status)}
                   </td>
@@ -145,7 +145,7 @@ export function DataTable() {
         </table>
       </div>
       
-      <div className="py-3 px-6 bg-white border-t border-blue-200">
+      <div className="py-3 px-6 bg-white border-t border-gray-200">
         <Pagination 
           currentPage={currentPage} 
           totalPages={totalPages} 
