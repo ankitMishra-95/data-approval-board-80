@@ -14,7 +14,7 @@ export interface DataItem {
 export function generateMockData(page: number, perPage: number) {
   const total = 78;
   const statusOptions = ['Pending', 'Approved', 'Rejected'];
-  const priorityOptions = ['High', 'Medium', 'Low'];
+  const priorityOptions: Array<"High" | "Medium" | "Low"> = ['High', 'Medium', 'Low'];
   const departmentOptions = ['Maintenance', 'Facilities', 'IT', 'Operations', 'Production', 'Quality'];
   
   const start = (page - 1) * perPage;
