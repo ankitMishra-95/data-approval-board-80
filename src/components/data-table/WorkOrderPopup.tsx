@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from "react";
 import type { DataItem } from "@/lib/mock-data";
 
 interface WorkOrderPopupProps {
@@ -23,6 +25,24 @@ export function WorkOrderPopup({
   onApprove, 
   onReject 
 }: WorkOrderPopupProps) {
+  const [checkedSections, setCheckedSections] = useState({
+    technical: false,
+    service: false,
+    customer: false
+  });
+  
+  const allSectionsChecked = 
+    checkedSections.technical && 
+    checkedSections.service && 
+    checkedSections.customer;
+
+  const handleCheckSection = (section: 'technical' | 'service' | 'customer', checked: boolean) => {
+    setCheckedSections(prev => ({
+      ...prev,
+      [section]: checked
+    }));
+  };
+
   if (!workOrder) return null;
   
   const getCriticalityBadge = (criticality: string) => {
@@ -135,6 +155,19 @@ export function WorkOrderPopup({
                 <div className="space-y-2 text-sm">
                   <p>This work order requires special equipment and trained personnel to handle the {workOrder.workOrderType.toLowerCase()} process. The technical complexity is rated as {workOrder.criticality}, requiring appropriate safety measures and expertise.</p>
                   <p>Previous service history indicates recurring issues with this particular customer account that should be taken into consideration during the service delivery.</p>
+                  <div className="mt-4 flex items-center space-x-2">
+                    <Checkbox 
+                      id="technical-checkbox" 
+                      checked={checkedSections.technical}
+                      onCheckedChange={(checked) => handleCheckSection('technical', checked === true)}
+                    />
+                    <label 
+                      htmlFor="technical-checkbox" 
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      I have reviewed the technical details
+                    </label>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -147,6 +180,19 @@ export function WorkOrderPopup({
                 <div className="space-y-2 text-sm">
                   <p>This {workOrder.serviceLevel} level service requires attention within {workOrder.criticality === 'Critical' ? '24 hours' : workOrder.criticality === 'High' ? '48 hours' : '72 hours'} of the reported issue.</p>
                   <p>Customer has requested specific handling procedures and has a {workOrder.serviceLevel} SLA that guarantees response times and quality assurance measures.</p>
+                  <div className="mt-4 flex items-center space-x-2">
+                    <Checkbox 
+                      id="service-checkbox" 
+                      checked={checkedSections.service}
+                      onCheckedChange={(checked) => handleCheckSection('service', checked === true)}
+                    />
+                    <label 
+                      htmlFor="service-checkbox" 
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      I have reviewed the service requirements
+                    </label>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -159,6 +205,19 @@ export function WorkOrderPopup({
                 <div className="space-y-2 text-sm">
                   <p>Customer {workOrder.customerAccount} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.workOrderType} services on a quarterly basis.</p>
                   <p>Previous interactions indicate a preference for detailed explanations of work performed and advance notification of any potential delays.</p>
+                  <div className="mt-4 flex items-center space-x-2">
+                    <Checkbox 
+                      id="customer-checkbox" 
+                      checked={checkedSections.customer}
+                      onCheckedChange={(checked) => handleCheckSection('customer', checked === true)}
+                    />
+                    <label 
+                      htmlFor="customer-checkbox" 
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      I have reviewed the customer history
+                    </label>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -175,7 +234,7 @@ export function WorkOrderPopup({
                 variant="outline" 
                 className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
                 onClick={() => onReject(workOrder.id)}
-                disabled={workOrder.status === 'Rejected'}
+                disabled={workOrder.status === 'Rejected' || !allSectionsChecked}
               >
                 <X className="h-4 w-4 mr-2" />
                 Reject
@@ -186,7 +245,7 @@ export function WorkOrderPopup({
                 variant="outline" 
                 className="text-green-600 hover:text-green-800 hover:bg-green-50 border-green-200"
                 onClick={() => onApprove(workOrder.id)}
-                disabled={workOrder.status === 'Approved'}
+                disabled={workOrder.status === 'Approved' || !allSectionsChecked}
               >
                 <Check className="h-4 w-4 mr-2" />
                 Approve
