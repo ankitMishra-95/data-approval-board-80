@@ -1,9 +1,10 @@
 
-import { X, Check } from "lucide-react";
+import { X, Check, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { DataItem } from "@/lib/mock-data";
 
 interface WorkOrderPopupProps {
@@ -53,7 +54,7 @@ export function WorkOrderPopup({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-[85vw] max-w-7xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Work Order {workOrder.workOrderNumber}</span>
@@ -122,6 +123,46 @@ export function WorkOrderPopup({
         </div>
         
         <Separator />
+        
+        <div className="py-4">
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="technical-details">
+              <AccordionTrigger className="text-base font-medium">
+                Technical Details
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 text-sm">
+                  <p>This work order requires special equipment and trained personnel to handle the {workOrder.workOrderType.toLowerCase()} process. The technical complexity is rated as {workOrder.criticality}, requiring appropriate safety measures and expertise.</p>
+                  <p>Previous service history indicates recurring issues with this particular customer account that should be taken into consideration during the service delivery.</p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="service-requirements">
+              <AccordionTrigger className="text-base font-medium">
+                Service Requirements
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 text-sm">
+                  <p>This {workOrder.serviceLevel} level service requires attention within {workOrder.criticality === 'Critical' ? '24 hours' : workOrder.criticality === 'High' ? '48 hours' : '72 hours'} of the reported issue.</p>
+                  <p>Customer has requested specific handling procedures and has a {workOrder.serviceLevel} SLA that guarantees response times and quality assurance measures.</p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value="customer-history">
+              <AccordionTrigger className="text-base font-medium">
+                Customer History
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2 text-sm">
+                  <p>Customer {workOrder.customerAccount} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.workOrderType} services on a quarterly basis.</p>
+                  <p>Previous interactions indicate a preference for detailed explanations of work performed and advance notification of any potential delays.</p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
         
         <DialogFooter className="sm:justify-between">
           <div className="text-sm text-gray-500">
