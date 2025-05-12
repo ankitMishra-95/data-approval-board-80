@@ -63,15 +63,17 @@ export function DataTable() {
     setIsPopupOpen(false);
   };
 
-  const getPriorityBadge = (priority: string) => {
+  const getCriticalityBadge = (criticality: string) => {
     const colors = {
-      High: "bg-red-50 text-red-700 border-red-200",
+      Critical: "bg-red-50 text-red-700 border-red-200",
+      High: "bg-orange-50 text-orange-700 border-orange-200",
       Medium: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      Low: "bg-blue-50 text-blue-700 border-blue-200"
+      Low: "bg-blue-50 text-blue-700 border-blue-200",
+      Minimal: "bg-green-50 text-green-700 border-green-200"
     };
     return (
-      <Badge variant="outline" className={colors[priority as keyof typeof colors]}>
-        {priority}
+      <Badge variant="outline" className={colors[criticality as keyof typeof colors] || "bg-gray-50 text-gray-700 border-gray-200"}>
+        {criticality}
       </Badge>
     );
   };
@@ -96,11 +98,13 @@ export function DataTable() {
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order Type</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer Account</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Requested By</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Priority</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Department</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Due Date</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lines</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Service Level</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Criticality</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Start Date/Time</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -108,7 +112,7 @@ export function DataTable() {
             {loading ? (
               Array.from({ length: itemsPerPage }).map((_, index) => (
                 <tr key={index} className="animate-pulse">
-                  {Array.from({ length: 7 }).map((_, cellIndex) => (
+                  {Array.from({ length: 9 }).map((_, cellIndex) => (
                     <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
                       <div className="h-4 bg-gray-100 rounded w-24"></div>
                     </td>
@@ -124,13 +128,15 @@ export function DataTable() {
                   >
                     {item.workOrderNumber}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.workOrderType}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.customerAccount}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.requestedBy}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.lines}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.serviceLevel}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {getPriorityBadge(item.priority)}
+                    {getCriticalityBadge(item.criticality)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.department}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.dueDate}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.startDateTime}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {getStatusBadge(item.status)}
                   </td>

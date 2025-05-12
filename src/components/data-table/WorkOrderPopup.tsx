@@ -1,6 +1,6 @@
 
 import { X, Check } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -23,15 +23,17 @@ export function WorkOrderPopup({
 }: WorkOrderPopupProps) {
   if (!workOrder) return null;
   
-  const getPriorityBadge = (priority: string) => {
+  const getCriticalityBadge = (criticality: string) => {
     const colors = {
-      High: "bg-red-50 text-red-700 border-red-200",
+      Critical: "bg-red-50 text-red-700 border-red-200",
+      High: "bg-orange-50 text-orange-700 border-orange-200",
       Medium: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      Low: "bg-blue-50 text-blue-700 border-blue-200"
+      Low: "bg-blue-50 text-blue-700 border-blue-200",
+      Minimal: "bg-green-50 text-green-700 border-green-200"
     };
     return (
-      <Badge variant="outline" className={colors[priority as keyof typeof colors]}>
-        {priority}
+      <Badge variant="outline" className={colors[criticality as keyof typeof colors] || "bg-gray-50 text-gray-700 border-gray-200"}>
+        {criticality}
       </Badge>
     );
   };
@@ -57,10 +59,23 @@ export function WorkOrderPopup({
             <span>Work Order {workOrder.workOrderNumber}</span>
             {getStatusBadge(workOrder.status)}
           </DialogTitle>
+          <DialogDescription>
+            Details for work order {workOrder.workOrderNumber}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
           <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Work Order Type</h4>
+              <p className="mt-1">{workOrder.workOrderType}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Customer Account</h4>
+              <p className="mt-1">{workOrder.customerAccount}</p>
+            </div>
+            
             <div>
               <h4 className="text-sm font-medium text-gray-500">Description</h4>
               <p className="mt-1">{workOrder.description}</p>
@@ -68,12 +83,23 @@ export function WorkOrderPopup({
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Department</h4>
-                <p className="mt-1">{workOrder.department}</p>
+                <h4 className="text-sm font-medium text-gray-500">Lines</h4>
+                <p className="mt-1">{workOrder.lines}</p>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Priority</h4>
-                <p className="mt-1">{getPriorityBadge(workOrder.priority)}</p>
+                <h4 className="text-sm font-medium text-gray-500">Service Level</h4>
+                <p className="mt-1">{workOrder.serviceLevel}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Criticality</h4>
+                <p className="mt-1">{getCriticalityBadge(workOrder.criticality)}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Start Date/Time</h4>
+                <p className="mt-1">{workOrder.startDateTime}</p>
               </div>
             </div>
             
