@@ -1,4 +1,3 @@
-
 import { X, Check, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -78,7 +77,7 @@ export function WorkOrderPopup({
       <DialogContent className="w-[85vw] max-w-7xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Work Order {workOrder.workOrderNumber}</span>
+            <span>Work Order Details</span>
             {getStatusBadge(workOrder.status)}
           </DialogTitle>
           <DialogDescription>
@@ -87,7 +86,8 @@ export function WorkOrderPopup({
         </DialogHeader>
         
         <div className="py-4">
-          <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            {/* First row */}
             <div>
               <h4 className="text-sm font-medium text-gray-500">Work Order Type</h4>
               <p className="mt-1">{workOrder.workOrderType}</p>
@@ -103,42 +103,36 @@ export function WorkOrderPopup({
               <p className="mt-1">{workOrder.description}</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Lines</h4>
-                <p className="mt-1">{workOrder.lines}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Service Level</h4>
-                <p className="mt-1">{workOrder.serviceLevel}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Criticality</h4>
-                <p className="mt-1">{getCriticalityBadge(workOrder.criticality)}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Start Date/Time</h4>
-                <p className="mt-1">{workOrder.startDateTime}</p>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Requested By</h4>
-                <p className="mt-1">{workOrder.requestedBy}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Assigned To</h4>
-                <p className="mt-1">{workOrder.assignedTo}</p>
-              </div>
+            {/* Second row */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Lines</h4>
+              <p className="mt-1">{workOrder.lines}</p>
             </div>
             
             <div>
-              <h4 className="text-sm font-medium text-gray-500">Due Date</h4>
-              <p className="mt-1">{workOrder.dueDate}</p>
+              <h4 className="text-sm font-medium text-gray-500">Service Level</h4>
+              <p className="mt-1">{workOrder.serviceLevel}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Criticality</h4>
+              <p className="mt-1">{getCriticalityBadge(workOrder.criticality)}</p>
+            </div>
+            
+            {/* Third row */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Start Date/Time</h4>
+              <p className="mt-1">{workOrder.startDateTime}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Requested By</h4>
+              <p className="mt-1">{workOrder.requestedBy}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Assigned To / Due Date</h4>
+              <p className="mt-1">{workOrder.assignedTo} / {workOrder.dueDate}</p>
             </div>
           </div>
         </div>
@@ -146,10 +140,11 @@ export function WorkOrderPopup({
         <Separator />
         
         <div className="py-4">
+          <h3 className="text-lg font-semibold mb-2">Required Reviews</h3>
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="technical-details">
               <AccordionTrigger className="text-base font-medium">
-                Technical Details
+                Standard Operating Procedures Summary
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2 text-sm">
@@ -165,7 +160,7 @@ export function WorkOrderPopup({
                       htmlFor="technical-checkbox" 
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      I have reviewed the technical details
+                      I have reviewed the standard operating procedures
                     </label>
                   </div>
                 </div>
@@ -174,7 +169,7 @@ export function WorkOrderPopup({
             
             <AccordionItem value="service-requirements">
               <AccordionTrigger className="text-base font-medium">
-                Service Requirements
+                Operating Experiences Summary
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2 text-sm">
@@ -190,7 +185,7 @@ export function WorkOrderPopup({
                       htmlFor="service-checkbox" 
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      I have reviewed the service requirements
+                      I have reviewed the operating experiences
                     </label>
                   </div>
                 </div>
@@ -199,7 +194,7 @@ export function WorkOrderPopup({
             
             <AccordionItem value="customer-history">
               <AccordionTrigger className="text-base font-medium">
-                Customer History
+                Human Performance Tools
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2 text-sm">
@@ -215,7 +210,7 @@ export function WorkOrderPopup({
                       htmlFor="customer-checkbox" 
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
-                      I have reviewed the customer history
+                      I have reviewed the human performance tools
                     </label>
                   </div>
                 </div>
