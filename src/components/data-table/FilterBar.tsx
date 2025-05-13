@@ -25,12 +25,12 @@ export function FilterBar() {
     
     // Load work order types from DataTable or another source
     // This is a temporary solution until we refactor state management
-    const customEvent = new CustomEvent('getWorkOrderTypes', {
+    const requestTypesEvent = new CustomEvent('getWorkOrderTypes', {
       detail: {
         callback: (types: string[]) => setWorkOrderTypes(types)
       }
     });
-    window.dispatchEvent(customEvent);
+    window.dispatchEvent(requestTypesEvent);
   }, []);
 
   const handleWorkOrderTypeChange = (value: string) => {
@@ -49,11 +49,16 @@ export function FilterBar() {
     setSearchQuery(value);
     localStorage.setItem('searchQuery', value);
     
-    // Notify DataTable about the search change
-    const customEvent = new CustomEvent('filterChange', {
-      detail: { type: 'search', value }
-    });
-    window.dispatchEvent(customEvent);
+    // Add a slight delay to avoid excessive filtering during typing
+    const timeoutId = setTimeout(() => {
+      // Notify DataTable about the search change
+      const customEvent = new CustomEvent('filterChange', {
+        detail: { type: 'search', value }
+      });
+      window.dispatchEvent(customEvent);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
   };
 
   const clearFilters = () => {

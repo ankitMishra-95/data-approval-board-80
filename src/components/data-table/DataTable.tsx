@@ -42,11 +42,17 @@ export function DataTable() {
       
       if (type === 'workOrderType') {
         setSelectedWorkOrderType(value);
+        // Reset to first page when filter changes
+        setCurrentPage(1);
       } else if (type === 'search') {
         setSearchQuery(value);
+        // Reset to first page when search changes
+        setCurrentPage(1);
       } else if (type === 'reset') {
         setSelectedWorkOrderType('');
         setSearchQuery('');
+        // Reset to first page when filters are cleared
+        setCurrentPage(1);
       }
     };
 
@@ -86,6 +92,7 @@ export function DataTable() {
       setData(data);
       setTotalItems(total);
       setTotalPages(Math.ceil(total / itemsPerPage));
+      applyFilters(); // Apply filters immediately after data load
       setLoading(false);
     }, 800);
   };
