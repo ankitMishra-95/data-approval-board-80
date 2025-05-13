@@ -6,20 +6,50 @@ import { WorkOrderPopup } from "./WorkOrderPopup";
 import { generateMockData, type DataItem } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Search, Filter } from "lucide-react";
 
 export function DataTable() {
   const [data, setData] = useState<DataItem[]>([]);
+  const [filteredData, setFilteredData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<DataItem | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [workOrderTypes, setWorkOrderTypes] = useState<string[]>([]);
+  const [selectedWorkOrderType, setSelectedWorkOrderType] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const itemsPerPage = 10;
 
   useEffect(() => {
+    // Load saved filter from localStorage
+    const savedFilter = localStorage.getItem('workOrderTypeFilter');
+    if (savedFilter) {
+      setSelectedWorkOrderType(savedFilter);
+    }
+    
+    // Load saved search query from localStorage
+    const savedSearch = localStorage.getItem('searchQuery');
+    if (savedSearch) {
+      setSearchQuery(savedSearch);
+    }
+    
     fetchData(currentPage);
   }, [currentPage]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      // Extract unique work order types
+      const types = Array.from(new Set(data.map(item => item.workOrderType)));
+      setWorkOrderTypes(types);
+      
+      // Apply filters to data
+      applyFilters();
+    }
+  }, [data, selectedWorkOrderType, searchQuery]);
 
   const fetchData = async (page: number) => {
     setLoading(true);
@@ -34,23 +64,48 @@ export function DataTable() {
     }, 800);
   };
 
+  const applyFilters = () => {
+    let filteredResults = [...data];
+    
+    // Apply work order type filter if selected
+    if (selectedWorkOrderType) {
+      filteredResults = filteredResults.filter(item => 
+        item.workOrderType === selectedWorkOrderType
+      );
+    }
+    
+    // Apply search query if provided
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filteredResults = filteredResults.filter(item => 
+        Object.values(item).some(value => 
+          value && value.toString().toLowerCase().includes(query)
+        )
+      );
+    }
+    
+    setFilteredData(filteredResults);
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
   const handleApprove = (id: number) => {
     toast.success(`Work Order #${id} approved successfully`);
-    setData(data.map(item => 
+    const updatedData = data.map(item => 
       item.id === id ? { ...item, status: 'Approved' } : item
-    ));
+    );
+    setData(updatedData);
     setIsPopupOpen(false);
   };
 
   const handleDisapprove = (id: number) => {
     toast.error(`Work Order #${id} rejected`);
-    setData(data.map(item => 
+    const updatedData = data.map(item => 
       item.id === id ? { ...item, status: 'Rejected' } : item
-    ));
+    );
+    setData(updatedData);
     setIsPopupOpen(false);
   };
 
@@ -61,6 +116,24 @@ export function DataTable() {
 
   const closeWorkOrderPopup = () => {
     setIsPopupOpen(false);
+  };
+
+  const handleWorkOrderTypeChange = (value: string) => {
+    setSelectedWorkOrderType(value);
+    localStorage.setItem('workOrderTypeFilter', value);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    localStorage.setItem('searchQuery', value);
+  };
+
+  const clearFilters = () => {
+    setSelectedWorkOrderType('');
+    setSearchQuery('');
+    localStorage.removeItem('workOrderTypeFilter');
+    localStorage.removeItem('searchQuery');
   };
 
   const getCriticalityBadge = (criticality: string) => {
@@ -91,8 +164,51 @@ export function DataTable() {
     }
   };
 
+  // Determine which data to display (filtered or all)
+  const displayData = (selectedWorkOrderType || searchQuery.trim()) ? filteredData : data;
+
   return (
     <div className="w-full overflow-hidden">
+      <div className="mb-4 flex flex-wrap gap-2 justify-end">
+        <div className="flex items-center relative">
+          <Search className="absolute left-2 h-4 w-4 text-gray-400" />
+          <Input 
+            placeholder="Search all columns..." 
+            className="pl-8 w-64"
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-400" />
+          <Select 
+            value={selectedWorkOrderType} 
+            onValueChange={handleWorkOrderTypeChange}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by Work Order Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {workOrderTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {(selectedWorkOrderType || searchQuery) && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-xs"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+      
       <div className="overflow-x-auto">
         <table className="w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -119,8 +235,8 @@ export function DataTable() {
                   ))}
                 </tr>
               ))
-            ) : (
-              data.map((item) => (
+            ) : displayData.length > 0 ? (
+              displayData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td 
                     className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline"
@@ -142,6 +258,12 @@ export function DataTable() {
                   </td>
                 </tr>
               ))
+            ) : (
+              <tr>
+                <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
+                  No work orders found matching the current filters.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
