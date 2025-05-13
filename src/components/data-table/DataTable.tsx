@@ -6,6 +6,9 @@ import { WorkOrderPopup } from "./WorkOrderPopup";
 import { generateMockData, type DataItem } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Search, Filter } from "lucide-react";
 
 export function DataTable() {
   const [data, setData] = useState<DataItem[]>([]);
@@ -35,42 +38,7 @@ export function DataTable() {
     }
     
     fetchData(currentPage);
-
-    // Listen for filter change events from FilterBar
-    const handleFilterChange = (event: CustomEvent) => {
-      const { type, value } = event.detail;
-      
-      if (type === 'workOrderType') {
-        setSelectedWorkOrderType(value);
-        // Reset to first page when filter changes
-        setCurrentPage(1);
-      } else if (type === 'search') {
-        setSearchQuery(value);
-        // Reset to first page when search changes
-        setCurrentPage(1);
-      } else if (type === 'reset') {
-        setSelectedWorkOrderType('');
-        setSearchQuery('');
-        // Reset to first page when filters are cleared
-        setCurrentPage(1);
-      }
-    };
-
-    // Provide workOrderTypes to FilterBar when requested
-    const handleGetWorkOrderTypes = (event: CustomEvent) => {
-      if (event.detail && event.detail.callback) {
-        event.detail.callback(workOrderTypes);
-      }
-    };
-    
-    window.addEventListener('filterChange', handleFilterChange as EventListener);
-    window.addEventListener('getWorkOrderTypes', handleGetWorkOrderTypes as EventListener);
-    
-    return () => {
-      window.removeEventListener('filterChange', handleFilterChange as EventListener);
-      window.removeEventListener('getWorkOrderTypes', handleGetWorkOrderTypes as EventListener);
-    };
-  }, [currentPage, workOrderTypes]);
+  }, [currentPage]);
 
   useEffect(() => {
     if (data.length > 0) {
@@ -92,7 +60,6 @@ export function DataTable() {
       setData(data);
       setTotalItems(total);
       setTotalPages(Math.ceil(total / itemsPerPage));
-      applyFilters(); // Apply filters immediately after data load
       setLoading(false);
     }, 800);
   };
@@ -151,6 +118,24 @@ export function DataTable() {
     setIsPopupOpen(false);
   };
 
+  const handleWorkOrderTypeChange = (value: string) => {
+    setSelectedWorkOrderType(value);
+    localStorage.setItem('workOrderTypeFilter', value);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    localStorage.setItem('searchQuery', value);
+  };
+
+  const clearFilters = () => {
+    setSelectedWorkOrderType('');
+    setSearchQuery('');
+    localStorage.removeItem('workOrderTypeFilter');
+    localStorage.removeItem('searchQuery');
+  };
+
   const getCriticalityBadge = (criticality: string) => {
     const colors = {
       Critical: "bg-red-50 text-red-700 border-red-200",
@@ -184,6 +169,46 @@ export function DataTable() {
 
   return (
     <div className="w-full overflow-hidden">
+      <div className="mb-4 flex flex-wrap gap-2 justify-end">
+        <div className="flex items-center relative">
+          <Search className="absolute left-2 h-4 w-4 text-gray-400" />
+          <Input 
+            placeholder="Search all columns..." 
+            className="pl-8 w-64"
+            value={searchQuery}
+            onChange={handleSearchChange}
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-400" />
+          <Select 
+            value={selectedWorkOrderType} 
+            onValueChange={handleWorkOrderTypeChange}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by Work Order Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {workOrderTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {(selectedWorkOrderType || searchQuery) && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-xs"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+      
       <div className="overflow-x-auto">
         <table className="w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
