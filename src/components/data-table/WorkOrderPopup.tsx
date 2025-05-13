@@ -1,12 +1,11 @@
 
-import { X, Check, ChevronDown } from "lucide-react";
+import { X, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import type { DataItem } from "@/lib/mock-data";
@@ -245,7 +244,7 @@ export function WorkOrderPopup({
           
           <DialogFooter className="sm:justify-between">
             <div className="text-sm">
-              Status: {getStatusBadge(workOrder.status)}
+              {getStatusBadge(workOrder.status)}
             </div>
             <div className="flex gap-2">
               {workOrder.status !== 'Rejected' && (
