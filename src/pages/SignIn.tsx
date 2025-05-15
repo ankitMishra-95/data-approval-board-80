@@ -79,12 +79,7 @@ const SignIn = () => {
       <div className="w-full max-w-md p-4">
         <Card className="border-blue-100 shadow-lg">
           <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-xl font-bold text-white">A</span>
-              </div>
-            </div>
-            <CardTitle className="text-2xl text-center font-bold">
+            <CardTitle className="text-2xl text-center font-bold text-blue-900">
               {forgotPassword ? "Reset Password" : "Sign In"}
             </CardTitle>
             <CardDescription className="text-center text-gray-500">
@@ -157,7 +152,7 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full bg-blue-500 hover:bg-blue-600"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -191,7 +186,7 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full bg-blue-500 hover:bg-blue-600"
                     disabled={isLoading}
                   >
                     {isLoading ? "Sending..." : "Send Reset Link"}
@@ -203,7 +198,7 @@ const SignIn = () => {
           <CardFooter className="flex flex-col space-y-2">
             <Button
               variant="ghost"
-              className="w-full text-blue-600"
+              className="w-full text-blue-600 hover:bg-blue-50"
               onClick={() => setForgotPassword(!forgotPassword)}
               disabled={isLoading}
             >
