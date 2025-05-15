@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import SignIn from "./pages/SignIn";
@@ -20,12 +20,17 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/" element={
+            {/* Sign in page at root and /login routes */}
+            <Route path="/" element={<SignIn />} />
+            <Route path="/login" element={<SignIn />} />
+            
+            {/* Dashboard at /dashboard route */}
+            <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Index />
               </ProtectedRoute>
             } />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

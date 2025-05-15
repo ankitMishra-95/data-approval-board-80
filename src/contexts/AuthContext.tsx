@@ -1,12 +1,17 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
+
+// Default credentials
+const DEFAULT_EMAIL = "admin@example.com";
+const DEFAULT_PASSWORD = "password123";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -20,16 +25,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAuthenticated(auth);
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    // Mock login - in a real app, replace with actual authentication logic
-    localStorage.setItem("isAuthenticated", "true");
-    setIsAuthenticated(true);
+  const login = async (email: string, password: string): Promise<boolean> => {
+    // Check if credentials match our default ones
+    if (email === DEFAULT_EMAIL && password === DEFAULT_PASSWORD) {
+      localStorage.setItem("isAuthenticated", "true");
+      setIsAuthenticated(true);
+      toast.success("Signed in successfully!");
+      navigate("/dashboard");
+      return true;
+    } else {
+      toast.error("Invalid credentials. Please try again.");
+      return false;
+    }
   };
 
   const logout = () => {
     localStorage.removeItem("isAuthenticated");
     setIsAuthenticated(false);
-    navigate("/signin");
+    navigate("/");
   };
 
   return (

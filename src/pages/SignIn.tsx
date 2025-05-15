@@ -1,11 +1,11 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,7 @@ const formSchema = z.object({
 });
 
 const SignIn = () => {
-  const navigate = useNavigate();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
@@ -43,15 +43,10 @@ const SignIn = () => {
     setIsLoading(true);
     
     try {
-      // Mock authentication - in a real application, replace with actual auth
-      console.log("Signing in with:", values);
-      
-      // For demo purposes, just simulate successful login
-      localStorage.setItem("isAuthenticated", "true");
-      toast.success("Signed in successfully!");
-      navigate("/");
+      // Use the context's login function
+      await login(values.email, values.password);
     } catch (error) {
-      toast.error("Failed to sign in. Please check your credentials.");
+      toast.error("An unexpected error occurred.");
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -87,6 +82,11 @@ const SignIn = () => {
                 ? "Enter your email to receive a password reset link"
                 : "Enter your credentials to access the dashboard"}
             </CardDescription>
+            {!forgotPassword && (
+              <CardDescription className="text-center text-sm font-medium text-blue-600 mt-2">
+                Demo credentials: admin@example.com / password123
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             <Form {...form}>
