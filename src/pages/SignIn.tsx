@@ -82,11 +82,6 @@ const SignIn = () => {
                 ? "Enter your email to receive a password reset link"
                 : "Enter your credentials to access the dashboard"}
             </CardDescription>
-            {!forgotPassword && (
-              <CardDescription className="text-center text-sm font-medium text-blue-600 mt-2">
-                Demo credentials: admin@example.com / password123
-              </CardDescription>
-            )}
           </CardHeader>
           <CardContent>
             <Form {...form}>
