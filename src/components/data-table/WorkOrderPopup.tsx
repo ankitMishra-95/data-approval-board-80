@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { DataItem } from "@/lib/mock-data";
 
 interface WorkOrderPopupProps {
@@ -18,6 +18,13 @@ interface WorkOrderPopupProps {
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
 }
+
+// Store checkbox states globally
+const workOrderCheckStates: Record<number, {
+  technical: boolean;
+  service: boolean;
+  customer: boolean;
+}> = {};
 
 export function WorkOrderPopup({ 
   workOrder, 
@@ -35,16 +42,37 @@ export function WorkOrderPopup({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   
+  // Reset or initialize checkbox states when workOrder changes
+  useEffect(() => {
+    if (workOrder) {
+      // Load saved state if exists, otherwise initialize with false values
+      const savedState = workOrderCheckStates[workOrder.id] || {
+        technical: false,
+        service: false,
+        customer: false
+      };
+      setCheckedSections(savedState);
+    }
+  }, [workOrder]);
+  
   const allSectionsChecked = 
     checkedSections.technical && 
     checkedSections.service && 
     checkedSections.customer;
 
   const handleCheckSection = (section: 'technical' | 'service' | 'customer', checked: boolean) => {
-    setCheckedSections(prev => ({
-      ...prev,
+    if (!workOrder) return;
+    
+    const newState = {
+      ...checkedSections,
       [section]: checked
-    }));
+    };
+    
+    // Update state in component
+    setCheckedSections(newState);
+    
+    // Save state in global object
+    workOrderCheckStates[workOrder.id] = newState;
   };
 
   const handleConfirmAction = () => {
@@ -176,12 +204,12 @@ export function WorkOrderPopup({
                     <p>Previous service history indicates recurring issues with this particular customer account that should be taken into consideration during the service delivery.</p>
                     <div className="mt-4 flex items-center space-x-2">
                       <Checkbox 
-                        id="technical-checkbox" 
+                        id={`technical-checkbox-${workOrder.id}`} 
                         checked={checkedSections.technical}
                         onCheckedChange={(checked) => handleCheckSection('technical', checked === true)}
                       />
                       <label 
-                        htmlFor="technical-checkbox" 
+                        htmlFor={`technical-checkbox-${workOrder.id}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
                         I have reviewed the standard operating procedures
@@ -201,12 +229,12 @@ export function WorkOrderPopup({
                     <p>Customer has requested specific handling procedures and has a {workOrder.serviceLevel} SLA that guarantees response times and quality assurance measures.</p>
                     <div className="mt-4 flex items-center space-x-2">
                       <Checkbox 
-                        id="service-checkbox" 
+                        id={`service-checkbox-${workOrder.id}`} 
                         checked={checkedSections.service}
                         onCheckedChange={(checked) => handleCheckSection('service', checked === true)}
                       />
                       <label 
-                        htmlFor="service-checkbox" 
+                        htmlFor={`service-checkbox-${workOrder.id}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
                         I have reviewed the operating experiences
@@ -226,12 +254,12 @@ export function WorkOrderPopup({
                     <p>Previous interactions indicate a preference for detailed explanations of work performed and advance notification of any potential delays.</p>
                     <div className="mt-4 flex items-center space-x-2">
                       <Checkbox 
-                        id="customer-checkbox" 
+                        id={`customer-checkbox-${workOrder.id}`} 
                         checked={checkedSections.customer}
                         onCheckedChange={(checked) => handleCheckSection('customer', checked === true)}
                       />
                       <label 
-                        htmlFor="customer-checkbox" 
+                        htmlFor={`customer-checkbox-${workOrder.id}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
                         I have reviewed the human performance tools
