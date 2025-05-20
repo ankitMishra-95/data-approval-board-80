@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { DataItem } from "@/lib/mock-data";
 
 interface WorkOrderPopupProps {
@@ -192,9 +193,9 @@ export function WorkOrderPopup({
           <Separator />
           
           <div className="py-4">
-            <h3 className="text-lg font-semibold mb-2">Required Reviews</h3>
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900">Required Reviews</h3>
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="technical-details">
+              <AccordionItem value="technical-details" className="bg-white">
                 <AccordionTrigger className="text-base font-medium">
                   Standard Operating Procedures Summary
                 </AccordionTrigger>
@@ -219,7 +220,7 @@ export function WorkOrderPopup({
                 </AccordionContent>
               </AccordionItem>
               
-              <AccordionItem value="service-requirements">
+              <AccordionItem value="service-requirements" className="bg-gray-50">
                 <AccordionTrigger className="text-base font-medium">
                   Operating Experiences Summary
                 </AccordionTrigger>
@@ -244,7 +245,7 @@ export function WorkOrderPopup({
                 </AccordionContent>
               </AccordionItem>
               
-              <AccordionItem value="customer-history">
+              <AccordionItem value="customer-history" className="bg-white">
                 <AccordionTrigger className="text-base font-medium">
                   Human Performance Tools
                 </AccordionTrigger>
