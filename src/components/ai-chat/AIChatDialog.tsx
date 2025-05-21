@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -166,7 +165,7 @@ export function AIChatDialog({ isOpen, onClose, workOrderType, serviceLevel }: A
                     >
                       <div className="flex items-center space-x-2 mb-1">
                         {message.role === "assistant" ? (
-                          <Bot className={`h-4 w-4 ${message.role === "user" ? "text-white" : "text-blue-600"}`} />
+                          <Bot className={`h-4 w-4 ${message.role === "assistant" ? "text-blue-600" : "text-white"}`} />
                         ) : (
                           <User className="h-4 w-4" />
                         )}
