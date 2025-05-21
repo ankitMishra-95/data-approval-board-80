@@ -199,7 +199,17 @@ export function WorkOrderPopup({
           <Separator />
           
           <div className="py-4">
-            <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900">Required Reviews</h3>
+            <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900 flex items-center justify-between">
+              Required Reviews
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={handleOpenAiChat}
+              >
+                <Bot className="h-4 w-4" />
+                Ask AI
+              </Button>
+            </h3>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="technical-details" className="bg-white">
                 <AccordionTrigger className="text-base font-medium">
@@ -276,17 +286,6 @@ export function WorkOrderPopup({
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-            
-            <div className="mt-6 flex justify-center">
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-                onClick={handleOpenAiChat}
-              >
-                <Bot className="h-4 w-4" />
-                Ask AI
-              </Button>
-            </div>
           </div>
           
           <DialogFooter className="sm:justify-between">
@@ -359,3 +358,4 @@ export function WorkOrderPopup({
     </>
   );
 }
+
