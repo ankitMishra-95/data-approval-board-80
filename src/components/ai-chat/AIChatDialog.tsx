@@ -118,39 +118,39 @@ export function AIChatDialog({ isOpen, onClose, workOrderType, serviceLevel }: A
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>AI Assistant</DialogTitle>
+      <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col bg-white">
+        <DialogHeader className="border-b pb-2">
+          <DialogTitle className="text-blue-800">AI Assistant</DialogTitle>
         </DialogHeader>
         
         {!isChattingStarted ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-8">
-            <h3 className="text-lg font-medium">What would you like to chat about?</h3>
+            <h3 className="text-lg font-medium text-gray-700">What would you like to chat about?</h3>
             <RadioGroup value={topic || ""} onValueChange={(value) => handleTopicSelect(value as ChatTopic)} className="w-full max-w-md space-y-4">
-              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-gray-50 cursor-pointer">
-                <RadioGroupItem value="procedures" id="procedures" />
+              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-blue-50 cursor-pointer transition-colors">
+                <RadioGroupItem value="procedures" id="procedures" className="text-blue-600" />
                 <Label htmlFor="procedures" className="flex-1 cursor-pointer">Standard Operating Procedures Summary</Label>
               </div>
-              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-gray-50 cursor-pointer">
-                <RadioGroupItem value="experiences" id="experiences" />
+              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-blue-50 cursor-pointer transition-colors">
+                <RadioGroupItem value="experiences" id="experiences" className="text-blue-600" />
                 <Label htmlFor="experiences" className="flex-1 cursor-pointer">Operating Experiences Summary</Label>
               </div>
-              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-gray-50 cursor-pointer">
-                <RadioGroupItem value="performance" id="performance" />
+              <div className="flex items-center space-x-2 rounded-lg border p-4 hover:bg-blue-50 cursor-pointer transition-colors">
+                <RadioGroupItem value="performance" id="performance" className="text-blue-600" />
                 <Label htmlFor="performance" className="flex-1 cursor-pointer">Human Performance Tools</Label>
               </div>
             </RadioGroup>
             <Button 
               onClick={handleStartChat} 
               disabled={!topic} 
-              className="mt-4"
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
             >
               Start Chat
             </Button>
           </div>
         ) : (
           <>
-            <ScrollArea className="flex-1 p-4 border rounded-md" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 p-4 border rounded-md bg-gray-50" ref={scrollAreaRef}>
               <div className="space-y-4">
                 {messages.map((message, index) => (
                   <div 
@@ -160,13 +160,13 @@ export function AIChatDialog({ isOpen, onClose, workOrderType, serviceLevel }: A
                     <div 
                       className={`max-w-[80%] rounded-lg p-3 ${
                         message.role === "user" 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted"
+                          ? "bg-blue-600 text-white" 
+                          : "bg-white border border-gray-200 shadow-sm"
                       }`}
                     >
                       <div className="flex items-center space-x-2 mb-1">
                         {message.role === "assistant" ? (
-                          <Bot className="h-4 w-4" />
+                          <Bot className={`h-4 w-4 ${message.role === "user" ? "text-white" : "text-blue-600"}`} />
                         ) : (
                           <User className="h-4 w-4" />
                         )}
@@ -186,9 +186,9 @@ export function AIChatDialog({ isOpen, onClose, workOrderType, serviceLevel }: A
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type your message..."
-                className="flex-1"
+                className="flex-1 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
-              <Button type="submit" size="icon">
+              <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <SendHorizontal className="h-4 w-4" />
               </Button>
             </form>
