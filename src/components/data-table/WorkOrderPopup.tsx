@@ -1,5 +1,5 @@
 
-import { X, Check, ChevronDown } from "lucide-react";
+import { X, Check, ChevronDown, Bot } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { DataItem } from "@/lib/mock-data";
+import { AIChatDialog } from "../ai-chat/AIChatDialog";
 
 interface WorkOrderPopupProps {
   workOrder: DataItem | null;
@@ -42,6 +43,7 @@ export function WorkOrderPopup({
   
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   
   // Reset or initialize checkbox states when workOrder changes
   useEffect(() => {
@@ -92,6 +94,10 @@ export function WorkOrderPopup({
   const initiateAction = (type: 'approve' | 'reject') => {
     setActionType(type);
     setConfirmDialogOpen(true);
+  };
+  
+  const handleOpenAiChat = () => {
+    setAiChatOpen(true);
   };
 
   if (!workOrder) return null;
@@ -270,6 +276,17 @@ export function WorkOrderPopup({
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+            
+            <div className="mt-6 flex justify-center">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={handleOpenAiChat}
+              >
+                <Bot className="h-4 w-4" />
+                Ask AI
+              </Button>
+            </div>
           </div>
           
           <DialogFooter className="sm:justify-between">
@@ -330,6 +347,15 @@ export function WorkOrderPopup({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {workOrder && (
+        <AIChatDialog 
+          isOpen={aiChatOpen} 
+          onClose={() => setAiChatOpen(false)}
+          workOrderType={workOrder.workOrderType}
+          serviceLevel={workOrder.serviceLevel}
+        />
+      )}
     </>
   );
 }
