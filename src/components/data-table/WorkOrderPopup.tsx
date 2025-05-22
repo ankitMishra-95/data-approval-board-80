@@ -1,4 +1,3 @@
-
 import { X, Check, ChevronDown, Bot } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -202,12 +201,13 @@ export function WorkOrderPopup({
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900 flex items-center justify-between">
               Required Reviews
               <Button 
-                variant="outline" 
-                className="flex items-center gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                variant="ai"
+                size="sm"
+                className="flex items-center gap-2"
                 onClick={handleOpenAiChat}
               >
                 <Bot className="h-4 w-4" />
-                Ask AI
+                Ask AI Assistant
               </Button>
             </h3>
             <Accordion type="single" collapsible className="w-full">
@@ -358,4 +358,3 @@ export function WorkOrderPopup({
     </>
   );
 }
-
