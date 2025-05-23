@@ -3,50 +3,122 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+interface User {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_verified: boolean;
+  username: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
+  user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
-// Default credentials
-const DEFAULT_EMAIL = "admin@example.com";
-const DEFAULT_PASSWORD = "password123";
+// API base URL
+const API_BASE_URL = "https://dpc-backend-ma41.onrender.com";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check if user is authenticated on mount
-    const auth = localStorage.getItem("isAuthenticated") === "true";
-    setIsAuthenticated(auth);
+    const token = localStorage.getItem("token");
+    
+    if (token) {
+      fetchUserProfile(token).then(userData => {
+        if (userData) {
+          setIsAuthenticated(true);
+          setUser(userData);
+        } else {
+          // Token is invalid or expired
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      });
+    }
   }, []);
 
+  const fetchUserProfile = async (token: string): Promise<User | null> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Check if credentials match our default ones
-    if (email === DEFAULT_EMAIL && password === DEFAULT_PASSWORD) {
-      localStorage.setItem("isAuthenticated", "true");
-      setIsAuthenticated(true);
-      toast.success("Signed in successfully!");
-      navigate("/dashboard");
-      return true;
-    } else {
+    try {
+      // Create form data for token request
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
+      const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Store the token
+        localStorage.setItem("token", data.access_token);
+        
+        // Fetch user profile
+        const userData = await fetchUserProfile(data.access_token);
+        
+        if (userData) {
+          setIsAuthenticated(true);
+          setUser(userData);
+          toast.success("Signed in successfully!");
+          navigate("/dashboard");
+          return true;
+        }
+      }
+      
       toast.error("Invalid credentials. Please try again.");
+      return false;
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("An error occurred during login. Please try again.");
       return false;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem("isAuthenticated");
+    localStorage.removeItem("token");
     setIsAuthenticated(false);
+    setUser(null);
     navigate("/");
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

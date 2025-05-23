@@ -147,7 +147,8 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    className="w-full bg-blue-500 hover:bg-blue-600"
+                    variant="ai"
+                    className="w-full"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -181,7 +182,8 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    className="w-full bg-blue-500 hover:bg-blue-600"
+                    variant="ai"
+                    className="w-full"
                     disabled={isLoading}
                   >
                     {isLoading ? "Sending..." : "Send Reset Link"}
