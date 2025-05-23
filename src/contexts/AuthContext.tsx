@@ -83,9 +83,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: formData
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
+      const data = await response.json();
+
+      // Check if we got "Not Found" error
+      if (!response.ok) {
+        if (data?.detail === "Not Found") {
+          toast.error("Invalid username or password. Please try again.");
+        } else {
+          toast.error(`Login failed: ${data?.detail || "Unknown error"}`);
+        }
+        return false;
+      }
+
+      // Check if we have the access token
+      if (data?.access_token) {
         // Store the token
         localStorage.setItem("token", data.access_token);
         
@@ -98,11 +109,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           toast.success("Signed in successfully!");
           navigate("/dashboard");
           return true;
+        } else {
+          toast.error("Could not retrieve user profile. Please try again.");
+          localStorage.removeItem("token");
+          return false;
         }
+      } else {
+        toast.error("Authentication failed. Invalid response from server.");
+        return false;
       }
-      
-      toast.error("Invalid credentials. Please try again.");
-      return false;
     } catch (error) {
       console.error("Login error:", error);
       toast.error("An error occurred during login. Please try again.");
