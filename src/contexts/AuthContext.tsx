@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -15,7 +14,7 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (usernameOrEmail: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -68,11 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
     try {
       // Create form data for token request
       const formData = new URLSearchParams();
-      formData.append('username', email);
+      formData.append('username', usernameOrEmail);
       formData.append('password', password);
 
       const response = await fetch(`${API_BASE_URL}/api/auth/token`, {

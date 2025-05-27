@@ -3,7 +3,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,9 +19,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Form schema for validation
+// Form schema for validation - now accepts both username and email
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
+  username: z.string().min(1, { message: "Username or email is required" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
@@ -34,7 +34,7 @@ const SignIn = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     },
   });
@@ -43,8 +43,8 @@ const SignIn = () => {
     setIsLoading(true);
     
     try {
-      // Use the context's login function
-      await login(values.email, values.password);
+      // Use the context's login function - now passing username field directly
+      await login(values.username, values.password);
     } catch (error) {
       toast.error("An unexpected error occurred.");
       console.error(error);
@@ -53,12 +53,12 @@ const SignIn = () => {
     }
   };
 
-  const handleForgotPassword = async (email: string) => {
+  const handleForgotPassword = async (username: string) => {
     setIsLoading(true);
     
     try {
       // Mock password reset - in a real application, replace with actual implementation
-      console.log("Reset password for:", email);
+      console.log("Reset password for:", username);
       toast.success("Password reset email sent. Please check your inbox.");
       setForgotPassword(false);
     } catch (error) {
@@ -79,7 +79,7 @@ const SignIn = () => {
             </CardTitle>
             <CardDescription className="text-center text-gray-500">
               {forgotPassword 
-                ? "Enter your email to receive a password reset link"
+                ? "Enter your username or email to receive a password reset link"
                 : "Enter your credentials to access the dashboard"}
             </CardDescription>
           </CardHeader>
@@ -89,15 +89,15 @@ const SignIn = () => {
                 <form onSubmit={form.handleSubmit(handleSignIn)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Username or Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input
-                              placeholder="you@example.com"
+                              placeholder="username or you@example.com"
                               className="pl-10"
                               {...field}
                               disabled={isLoading}
@@ -157,19 +157,19 @@ const SignIn = () => {
               ) : (
                 <form onSubmit={(e) => {
                   e.preventDefault();
-                  handleForgotPassword(form.getValues("email"));
+                  handleForgotPassword(form.getValues("username"));
                 }} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="email"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Username or Email</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                             <Input
-                              placeholder="you@example.com"
+                              placeholder="username or you@example.com"
                               className="pl-10"
                               {...field}
                               disabled={isLoading}
