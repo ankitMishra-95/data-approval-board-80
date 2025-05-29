@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
@@ -15,11 +14,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       <Sidebar open={sidebarOpen} />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-20"}`}>
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-20"} min-w-0`}>
         <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        <main className="flex-1">
+        <main className="flex-1 overflow-auto">
           {children}
         </main>
       </div>

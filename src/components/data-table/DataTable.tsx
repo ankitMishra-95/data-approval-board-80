@@ -1,28 +1,55 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "./Pagination";
 import { WorkOrderPopup } from "./WorkOrderPopup";
-import { generateMockData, type DataItem } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Search, Filter } from "lucide-react";
+import Cookies from 'js-cookie';
+import { format } from "date-fns";
+import { API_BASE_URL } from "@/lib/constants";
+
+interface WorkOrder {
+  WorkOrderId: string;
+  Description: string;
+  WorkerGroupId: string;
+  WorkOrderLifecycleStateId: string;
+  WorkOrderTypeId: string;
+  ExpectedStart: string;
+  ExpectedEnd: string;
+  CostType: string;
+  ServiceLevel: number;
+  Active: boolean;
+  approval_status: string;
+  is_summary_generated: boolean;
+}
+
+interface WorkOrderResponse {
+  data: WorkOrder[];
+  count: number;
+  meta: {
+    skip: number;
+    limit: number;
+  };
+}
+
+const AUTH_COOKIE_NAME = 'auth_token';
 
 export function DataTable() {
-  const [data, setData] = useState<DataItem[]>([]);
-  const [filteredData, setFilteredData] = useState<DataItem[]>([]);
+  const [data, setData] = useState<WorkOrder[]>([]);
+  const [filteredData, setFilteredData] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<DataItem | null>(null);
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [workOrderTypes, setWorkOrderTypes] = useState<string[]>([]);
   const [selectedWorkOrderType, setSelectedWorkOrderType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const itemsPerPage = 10;
+  const itemsPerPage = 100;
 
   useEffect(() => {
     // Load saved filter from localStorage
@@ -43,7 +70,7 @@ export function DataTable() {
   useEffect(() => {
     if (data.length > 0) {
       // Extract unique work order types
-      const types = Array.from(new Set(data.map(item => item.workOrderType)));
+      const types = Array.from(new Set(data.map(item => item.WorkOrderTypeId)));
       setWorkOrderTypes(types);
       
       // Apply filters to data
@@ -53,15 +80,34 @@ export function DataTable() {
 
   const fetchData = async (page: number) => {
     setLoading(true);
-    
-    // Simulate API call with delay
-    setTimeout(() => {
-      const { data, total } = generateMockData(page, itemsPerPage);
-      setData(data);
-      setTotalItems(total);
-      setTotalPages(Math.ceil(total / itemsPerPage));
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const skip = (page - 1) * itemsPerPage;
+      const response = await fetch(`${API_BASE_URL}/work_orders?skip=${skip}&limit=${itemsPerPage}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch work orders');
+      }
+
+      const responseData: WorkOrderResponse = await response.json();
+      setData(responseData.data);
+      setTotalItems(responseData.count);
+      setTotalPages(Math.ceil(responseData.count / itemsPerPage));
+    } catch (error) {
+      console.error('Error fetching work orders:', error);
+      toast.error("Failed to load work orders");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const applyFilters = () => {
@@ -70,7 +116,7 @@ export function DataTable() {
     // Apply work order type filter if selected
     if (selectedWorkOrderType) {
       filteredResults = filteredResults.filter(item => 
-        item.workOrderType === selectedWorkOrderType
+        item.WorkOrderTypeId === selectedWorkOrderType
       );
     }
     
@@ -91,25 +137,25 @@ export function DataTable() {
     setCurrentPage(page);
   };
 
-  const handleApprove = (id: number) => {
-    toast.success(`Work Order #${id} approved successfully`);
+  const handleApprove = (workOrderId: string) => {
+    toast.success(`Work Order #${workOrderId} approved successfully`);
     const updatedData = data.map(item => 
-      item.id === id ? { ...item, status: 'Approved' } : item
+      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'APPROVED' } : item
     );
     setData(updatedData);
     setIsPopupOpen(false);
   };
 
-  const handleDisapprove = (id: number) => {
-    toast.error(`Work Order #${id} rejected`);
+  const handleDisapprove = (workOrderId: string) => {
+    toast.error(`Work Order #${workOrderId} rejected`);
     const updatedData = data.map(item => 
-      item.id === id ? { ...item, status: 'Rejected' } : item
+      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'REJECTED' } : item
     );
     setData(updatedData);
     setIsPopupOpen(false);
   };
 
-  const openWorkOrderPopup = (workOrder: DataItem) => {
+  const openWorkOrderPopup = (workOrder: WorkOrder) => {
     setSelectedWorkOrder(workOrder);
     setIsPopupOpen(true);
   };
@@ -137,30 +183,66 @@ export function DataTable() {
   };
 
   const getCriticalityBadge = (criticality: string) => {
-    const colors = {
-      Critical: "bg-red-50 text-red-700 border-red-200",
-      High: "bg-orange-50 text-orange-700 border-orange-200",
-      Medium: "bg-yellow-50 text-yellow-700 border-yellow-200",
-      Low: "bg-blue-50 text-blue-700 border-blue-200",
-      Minimal: "bg-green-50 text-green-700 border-green-200"
-    };
-    return (
-      <Badge variant="outline" className={colors[criticality as keyof typeof colors] || "bg-gray-50 text-gray-700 border-gray-200"}>
-        {criticality}
-      </Badge>
-    );
+    const normalized = criticality.toUpperCase().trim();
+    
+    // Check for variations of critical
+    if (normalized.includes('CRITICAL') || normalized === '1') {
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Critical</Badge>;
+    }
+    
+    // Check for variations of high
+    if (normalized.includes('HIGH') || normalized === '2') {
+      return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">High</Badge>;
+    }
+    
+    // Check for variations of medium
+    if (normalized.includes('MEDIUM') || normalized === '3') {
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Medium</Badge>;
+    }
+    
+    // Check for variations of low
+    if (normalized.includes('LOW') || normalized === '4') {
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Low</Badge>;
+    }
+    
+    // Check for variations of minimal
+    if (normalized.includes('MINIMAL') || normalized === '5') {
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Minimal</Badge>;
+    }
+    
+    // Default case
+    return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">{criticality}</Badge>;
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
-      case 'Approved':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
-      case 'Rejected':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    const normalized = status.toUpperCase().trim();
+    
+    // Check for variations of each status
+    if (normalized.includes('PENDING')) {
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
+    }
+    if (normalized.includes('APPROVED')) {
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
+    }
+    if (normalized.includes('REJECTED')) {
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
+    }
+    if (normalized.includes('CANCELLED')) {
+      return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Cancelled</Badge>;
+    }
+    if (normalized.includes('FINISHED')) {
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Finished</Badge>;
+    }
+    
+    // Default case
+    return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">{status}</Badge>;
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch (error) {
+      return dateString;
     }
   };
 
@@ -168,8 +250,8 @@ export function DataTable() {
   const displayData = (selectedWorkOrderType || searchQuery.trim()) ? filteredData : data;
 
   return (
-    <div className="w-full overflow-hidden">
-      <div className="mb-4 flex flex-wrap gap-2 justify-end">
+    <div className="w-full">
+      <div className="mb-4 mt-4 flex flex-wrap gap-2 justify-end px-4">
         <div className="flex items-center relative">
           <Search className="absolute left-2 h-4 w-4 text-gray-400" />
           <Input 
@@ -209,67 +291,66 @@ export function DataTable() {
         </div>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order Type</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer Account</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lines</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Service Level</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Criticality</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Start Date/Time</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (
-              Array.from({ length: itemsPerPage }).map((_, index) => (
-                <tr key={index} className="animate-pulse">
-                  {Array.from({ length: 9 }).map((_, cellIndex) => (
-                    <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
-                      <div className="h-4 bg-gray-100 rounded w-24"></div>
+      <div className="relative overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full align-middle">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order Type</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer Account</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lines</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Service Level</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Start Date/Time</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  Array.from({ length: itemsPerPage }).map((_, index) => (
+                    <tr key={index} className="animate-pulse">
+                      {Array.from({ length: 9 }).map((_, cellIndex) => (
+                        <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
+                          <div className="h-4 bg-gray-100 rounded w-24"></div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : displayData.length > 0 ? (
+                  displayData.map((item) => (
+                    <tr key={item.WorkOrderId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline" onClick={() => openWorkOrderPopup(item)}>
+                        {item.WorkOrderId}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.WorkOrderTypeId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.WorkerGroupId}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.Description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.CostType}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.ServiceLevel}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {formatDate(item.ExpectedStart)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {getStatusBadge(item.approval_status)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
+                      No work orders found matching the current filters.
                     </td>
-                  ))}
-                </tr>
-              ))
-            ) : displayData.length > 0 ? (
-              displayData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td 
-                    className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline"
-                    onClick={() => openWorkOrderPopup(item)}
-                  >
-                    {item.workOrderNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.workOrderType}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.customerAccount}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.description}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.lines}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.serviceLevel}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {getCriticalityBadge(item.criticality)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{item.startDateTime}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {getStatusBadge(item.status)}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
-                  No work orders found matching the current filters.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
       
-      <div className="py-3 px-6 bg-white border-t border-gray-200">
+      <div className="py-3 px-4 bg-white border-t border-gray-200">
         <Pagination 
           currentPage={currentPage} 
           totalPages={totalPages} 

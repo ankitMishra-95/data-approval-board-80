@@ -1,11 +1,11 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,8 @@ const formSchema = z.object({
 });
 
 const SignIn = () => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
@@ -38,6 +39,13 @@ const SignIn = () => {
       password: "",
     },
   });
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSignIn = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
@@ -68,6 +76,16 @@ const SignIn = () => {
       setIsLoading(false);
     }
   };
+
+  // Show nothing while checking authentication
+  if (authLoading) {
+    return null;
+  }
+
+  // If authenticated, don't render the sign-in form
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -147,8 +165,8 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    variant="ai"
-                    className="w-full"
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -182,8 +200,8 @@ const SignIn = () => {
                   />
                   <Button
                     type="submit"
-                    variant="ai"
-                    className="w-full"
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={isLoading}
                   >
                     {isLoading ? "Sending..." : "Send Reset Link"}
@@ -192,7 +210,7 @@ const SignIn = () => {
               )}
             </Form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-2">
+          <CardFooter>
             <Button
               variant="ghost"
               className="w-full text-blue-600 hover:bg-blue-50"

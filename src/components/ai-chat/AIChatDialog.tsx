@@ -17,7 +17,7 @@ interface AIChatDialogProps {
   isOpen: boolean;
   onClose: () => void;
   workOrderType: string;
-  serviceLevel: string;
+  serviceLevel: number;
 }
 
 export function AIChatDialog({ isOpen, onClose, workOrderType, serviceLevel }: AIChatDialogProps) {
