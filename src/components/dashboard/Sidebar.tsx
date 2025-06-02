@@ -9,9 +9,9 @@ interface SidebarProps {
 export function Sidebar({ open }: SidebarProps) {
   const menuItems = [
     { name: "Dashboard", icon: Home, active: true },
-    { name: "Reports", icon: FileText, active: false },
-    { name: "Analytics", icon: BarChart3, active: false },
-    { name: "Settings", icon: Settings, active: false },
+    // { name: "Reports", icon: FileText, active: false },
+    // { name: "Analytics", icon: BarChart3, active: false },
+    // { name: "Settings", icon: Settings, active: false },
   ];
 
   return (

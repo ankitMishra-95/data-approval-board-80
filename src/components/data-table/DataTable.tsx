@@ -123,11 +123,18 @@ export function DataTable() {
     // Apply search query if provided
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      filteredResults = filteredResults.filter(item => 
-        Object.values(item).some(value => 
-          value && value.toString().toLowerCase().includes(query)
-        )
-      );
+      filteredResults = filteredResults.filter(item => {
+        // Format the date for searching
+        const formattedDate = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
+        
+        // Check all fields including the formatted date
+        return Object.entries(item).some(([key, value]) => {
+          if (key === 'ExpectedStart') {
+            return formattedDate.includes(query);
+          }
+          return value && value.toString().toLowerCase().includes(query);
+        });
+      });
     }
     
     setFilteredData(filteredResults);
@@ -301,7 +308,7 @@ export function DataTable() {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order Type</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer Account</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Lines</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Cost Type</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Service Level</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Start Date/Time</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>

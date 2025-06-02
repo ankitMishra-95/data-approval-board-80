@@ -16,8 +16,8 @@ import { API_BASE_URL } from "@/lib/constants";
 
 interface WorkOrderSummary {
   operating_experience_summary: string;
-  standard_operating_procedures_summary: string;
-  human_performance_tools_summary: string;
+  hpt_rules_summary: string;
+  safety_rules_summary: string;
 }
 
 interface WorkOrder {
@@ -116,9 +116,9 @@ export function WorkOrderPopup({
       if (!response.ok) {
         if (response.status === 404) {
           setSummaryData({
-            standard_operating_procedures_summary: "We're working on the summary—check back soon!",
+            safety_rules_summary: "We're working on the summary—check back soon!",
             operating_experience_summary: "We're working on the summary—check back soon!",
-            human_performance_tools_summary: "We're working on the summary—check back soon!"
+            hpt_rules_summary: "We're working on the summary—check back soon!"
           });
           return;
         }
@@ -128,9 +128,9 @@ export function WorkOrderPopup({
       const data = await response.json();
       if (data.detail) {
         setSummaryData({
-          standard_operating_procedures_summary: "We're working on the summary—check back soon!",
+          safety_rules_summary: "We're working on the summary—check back soon!",
           operating_experience_summary: "We're working on the summary—check back soon!",
-          human_performance_tools_summary: "We're working on the summary—check back soon!"
+          hpt_rules_summary: "We're working on the summary—check back soon!"
         });
         return;
       }
@@ -139,9 +139,9 @@ export function WorkOrderPopup({
     } catch (error) {
       console.error('Error fetching work order summary:', error);
       setSummaryData({
-        standard_operating_procedures_summary: "We're working on the summary—check back soon!",
+        safety_rules_summary: "We're working on the summary—check back soon!",
         operating_experience_summary: "We're working on the summary—check back soon!",
-        human_performance_tools_summary: "We're working on the summary—check back soon!"
+        hpt_rules_summary: "We're working on the summary—check back soon!"
       });
     } finally {
       setIsLoadingSummary(false);
@@ -290,7 +290,7 @@ export function WorkOrderPopup({
               
               {/* Second row */}
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Lines</h4>
+                <h4 className="text-sm font-medium text-gray-500">Cost Type</h4>
                 <p className="mt-1">{workOrder.CostType}</p>
               </div>
               
@@ -344,7 +344,7 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <p>{summaryData.standard_operating_procedures_summary}</p>
+                      <p>{summaryData.safety_rules_summary}</p>
                     ) : (
                       <p>This work order requires special equipment and trained personnel to handle the {workOrder.WorkOrderTypeId.toLowerCase()} process. The technical complexity is rated as {workOrder.WorkOrderLifecycleStateId}, requiring appropriate safety measures and expertise.</p>
                     )}
@@ -410,7 +410,7 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <p>{summaryData.human_performance_tools_summary}</p>
+                      <p>{summaryData.hpt_rules_summary}</p>
                     ) : (
                       <p>Customer {workOrder.WorkerGroupId} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.WorkOrderTypeId} services on a quarterly basis.</p>
                     )}
