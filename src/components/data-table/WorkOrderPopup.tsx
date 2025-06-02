@@ -13,6 +13,7 @@ import { AIChatDialog } from "../ai-chat/AIChatDialog";
 import { format } from "date-fns";
 import Cookies from 'js-cookie';
 import { API_BASE_URL } from "@/lib/constants";
+import ReactMarkdown from 'react-markdown';
 
 interface WorkOrderSummary {
   operating_experience_summary: string;
@@ -344,7 +345,9 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <p>{summaryData.safety_rules_summary}</p>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{summaryData.safety_rules_summary}</ReactMarkdown>
+                      </div>
                     ) : (
                       <p>This work order requires special equipment and trained personnel to handle the {workOrder.WorkOrderTypeId.toLowerCase()} process. The technical complexity is rated as {workOrder.WorkOrderLifecycleStateId}, requiring appropriate safety measures and expertise.</p>
                     )}
@@ -377,7 +380,9 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <p>{summaryData.operating_experience_summary}</p>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{summaryData.operating_experience_summary}</ReactMarkdown>
+                      </div>
                     ) : (
                       <p>This {workOrder.ServiceLevel} level service requires attention within {workOrder.WorkOrderLifecycleStateId === 'Critical' ? '24 hours' : workOrder.WorkOrderLifecycleStateId === 'High' ? '48 hours' : '72 hours'} of the reported issue.</p>
                     )}
@@ -410,7 +415,9 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <p>{summaryData.hpt_rules_summary}</p>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{summaryData.hpt_rules_summary}</ReactMarkdown>
+                      </div>
                     ) : (
                       <p>Customer {workOrder.WorkerGroupId} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.WorkOrderTypeId} services on a quarterly basis.</p>
                     )}
