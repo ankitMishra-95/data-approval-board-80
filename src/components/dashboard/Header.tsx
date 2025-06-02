@@ -23,7 +23,7 @@ export function Header({ toggleSidebar, sidebarOpen }: HeaderProps) {
         <Menu className="h-5 w-5" />
       </Button>
       <div className="flex items-center justify-between w-full">
-        <h1 className="text-lg font-medium">Approval Dashboard</h1>
+        <h1 className="text-lg font-medium">Work Orders Dashboard</h1>
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 

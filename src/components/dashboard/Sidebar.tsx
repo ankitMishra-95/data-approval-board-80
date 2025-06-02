@@ -24,7 +24,7 @@ export function Sidebar({ open }: SidebarProps) {
       <div className="h-16 flex items-center px-4 border-b border-gray-200">
         <div className={cn("flex items-center", open ? "justify-between w-full" : "justify-center")}>
           {open && <span className="font-bold text-xl">ApprovalDB</span>}
-          {!open && <span className="font-bold text-xl">A</span>}
+          {!open && <span className="font-bold text-xl">AD</span>}
         </div>
       </div>
       <nav className="py-4">
