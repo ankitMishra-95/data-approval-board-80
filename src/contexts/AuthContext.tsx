@@ -21,7 +21,7 @@ interface AuthContextType {
 }
 
 // API base URL
-const API_BASE_URL = "https://dpc-backend-qs8j.onrender.com";  // Direct backend URL
+const API_BASE_URL = "https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net";  // Direct backend URL
 
 // Cookie configuration
 const AUTH_COOKIE_NAME = 'auth_token';

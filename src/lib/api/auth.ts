@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 
-const API_BASE_URL = 'https://dpc-backend-qs8j.onrender.com/api';
+const API_BASE_URL = 'https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net/api';
 const AUTH_COOKIE_NAME = 'auth_token';
 
 interface PasswordResetRequest {

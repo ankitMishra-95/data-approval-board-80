@@ -56,7 +56,7 @@ const WorkOrders = () => {
       }
 
       const skip = page * ITEMS_PER_PAGE;
-      const response = await fetch(`https://dpc-backend-qs8j.onrender.com/api/work_orders?skip=${skip}&limit=${ITEMS_PER_PAGE}`, {
+      const response = await fetch(`https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net/api/work_orders?skip=${skip}&limit=${ITEMS_PER_PAGE}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

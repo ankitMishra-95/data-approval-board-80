@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import Cookies from 'js-cookie';
 import { API_BASE_URL } from "@/lib/constants";
 import ReactMarkdown from 'react-markdown';
+import { toast } from "sonner";
 
 interface WorkOrderSummary {
   operating_experience_summary: string;
@@ -49,6 +50,12 @@ interface AIChatDialogProps {
   onClose: () => void;
   workOrderType: string;
   serviceLevel: number;
+}
+
+interface ApprovalResponse {
+  message: string;
+  work_order_id: string;
+  status: string;
 }
 
 // Store checkbox states globally
@@ -169,13 +176,43 @@ export function WorkOrderPopup({
     workOrderCheckStates[workOrder.WorkOrderId] = newState;
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     if (!workOrder || !actionType) return;
     
-    if (actionType === 'approve') {
-      onApprove(workOrder.WorkOrderId);
-    } else {
-      onReject(workOrder.WorkOrderId);
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/approval/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workorder_id: workOrder.WorkOrderId,
+          approval_status: actionType === 'approve' ? 'APPROVED' : 'REJECTED'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${actionType} work order`);
+      }
+
+      const data: ApprovalResponse = await response.json();
+      
+      if (actionType === 'approve') {
+        toast.success(`Work Order #${workOrder.WorkOrderId} approved successfully`);
+        onApprove(workOrder.WorkOrderId);
+      } else {
+        toast.error(`Work Order #${workOrder.WorkOrderId} rejected`);
+        onReject(workOrder.WorkOrderId);
+      }
+    } catch (error) {
+      console.error(`Error ${actionType}ing work order:`, error);
+      toast.error(`Failed to ${actionType} work order. Please try again.`);
     }
     
     setConfirmDialogOpen(false);
