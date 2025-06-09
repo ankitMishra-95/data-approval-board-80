@@ -1,4 +1,4 @@
-import { X, Check, ChevronDown, Bot } from "lucide-react";
+import { X, Check, ChevronDown, Bot, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ import Cookies from 'js-cookie';
 import { API_BASE_URL } from "@/lib/constants";
 import ReactMarkdown from 'react-markdown';
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface WorkOrderSummary {
   operating_experience_summary: string;
@@ -58,6 +61,12 @@ interface ApprovalResponse {
   status: string;
 }
 
+interface FeedbackState {
+  isOpen: boolean;
+  type: 'positive' | 'negative' | null;
+  summaryType: 'safety' | 'operating' | 'hpt' | null;
+}
+
 // Store checkbox states globally
 const workOrderCheckStates: Record<string, {
   technical: boolean;
@@ -85,6 +94,12 @@ export function WorkOrderPopup({
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [summaryData, setSummaryData] = useState<WorkOrderSummary | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [feedbackState, setFeedbackState] = useState<FeedbackState>({
+    isOpen: false,
+    type: null,
+    summaryType: null
+  });
+  const [feedbackText, setFeedbackText] = useState('');
   
   // Reset or initialize checkbox states when workOrder changes
   useEffect(() => {
@@ -236,6 +251,71 @@ export function WorkOrderPopup({
     }
   };
 
+  const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt') => {
+    setFeedbackState({
+      isOpen: true,
+      type,
+      summaryType
+    });
+  };
+
+  const submitFeedback = async () => {
+    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) return;
+
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/feedback/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workorder_id: workOrder.WorkOrderId,
+          summary_type: feedbackState.summaryType,
+          feedback_type: feedbackState.type,
+          feedback_text: feedbackText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit feedback');
+      }
+
+      toast.success('Thank you for your feedback!');
+      setFeedbackState({ isOpen: false, type: null, summaryType: null });
+      setFeedbackText('');
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      toast.error('Failed to submit feedback. Please try again.');
+    }
+  };
+
+  const FeedbackButtons = ({ summaryType }: { summaryType: 'safety' | 'operating' | 'hpt' }) => (
+    <div className="mt-4 flex justify-end gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleFeedback('positive', summaryType)}
+        className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+      >
+        <ThumbsUp className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => handleFeedback('negative', summaryType)}
+        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+      >
+        <ThumbsDown className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
   if (!workOrder) return null;
   
   const getCriticalityBadge = (criticality: string) => {
@@ -382,9 +462,12 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown>{summaryData.safety_rules_summary}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown>{summaryData.safety_rules_summary}</ReactMarkdown>
+                        </div>
+                        <FeedbackButtons summaryType="safety" />
+                      </>
                     ) : (
                       <p>This work order requires special equipment and trained personnel to handle the {workOrder.WorkOrderTypeId.toLowerCase()} process. The technical complexity is rated as {workOrder.WorkOrderLifecycleStateId}, requiring appropriate safety measures and expertise.</p>
                     )}
@@ -398,7 +481,7 @@ export function WorkOrderPopup({
                         htmlFor={`technical-checkbox-${workOrder.WorkOrderId}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
-                        I have reviewed the standard operating procedures
+                        I have read the standard operating procedures
                       </label>
                     </div>
                   </div>
@@ -417,9 +500,12 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown>{summaryData.operating_experience_summary}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown>{summaryData.operating_experience_summary}</ReactMarkdown>
+                        </div>
+                        <FeedbackButtons summaryType="operating" />
+                      </>
                     ) : (
                       <p>This {workOrder.ServiceLevel} level service requires attention within {workOrder.WorkOrderLifecycleStateId === 'Critical' ? '24 hours' : workOrder.WorkOrderLifecycleStateId === 'High' ? '48 hours' : '72 hours'} of the reported issue.</p>
                     )}
@@ -433,7 +519,7 @@ export function WorkOrderPopup({
                         htmlFor={`service-checkbox-${workOrder.WorkOrderId}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
-                        I have reviewed the operating experiences
+                        I have read the operating experiences
                       </label>
                     </div>
                   </div>
@@ -452,9 +538,12 @@ export function WorkOrderPopup({
                         <div className="h-4 bg-gray-100 rounded w-1/2"></div>
                       </div>
                     ) : summaryData ? (
-                      <div className="prose prose-sm max-w-none">
-                        <ReactMarkdown>{summaryData.hpt_rules_summary}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="prose prose-sm max-w-none">
+                          <ReactMarkdown>{summaryData.hpt_rules_summary}</ReactMarkdown>
+                        </div>
+                        <FeedbackButtons summaryType="hpt" />
+                      </>
                     ) : (
                       <p>Customer {workOrder.WorkerGroupId} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.WorkOrderTypeId} services on a quarterly basis.</p>
                     )}
@@ -468,7 +557,7 @@ export function WorkOrderPopup({
                         htmlFor={`customer-checkbox-${workOrder.WorkOrderId}`} 
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
-                        I have reviewed the human performance tools
+                        I have read the human performance tools
                       </label>
                     </div>
                   </div>
@@ -544,6 +633,46 @@ export function WorkOrderPopup({
           serviceLevel={workOrder.ServiceLevel}
         />
       )}
+
+      <Dialog open={feedbackState.isOpen} onOpenChange={(open) => !open && setFeedbackState({ isOpen: false, type: null, summaryType: null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-blue-900">Provide Feedback</DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Share your thoughts about this summary to help us improve.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="feedback" className="text-blue-900">Your Feedback</Label>
+              <Textarea
+                id="feedback"
+                placeholder="What could be improved? Please provide detailed feedback..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                className="min-h-[100px] border-blue-200 focus:border-blue-300 focus:ring-blue-200"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFeedbackState({ isOpen: false, type: null, summaryType: null })}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={submitFeedback}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
