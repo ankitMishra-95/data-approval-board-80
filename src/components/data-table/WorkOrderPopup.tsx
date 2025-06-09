@@ -225,12 +225,18 @@ export function WorkOrderPopup({
         }
       });
 
+      if (response.status === 404) {
+        setExistingFeedback(null);
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         setExistingFeedback(data);
       }
     } catch (error) {
       console.error('Error fetching feedback:', error);
+      setExistingFeedback(null);
     }
   };
 
@@ -420,7 +426,7 @@ export function WorkOrderPopup({
     }[summaryType] as keyof WorkOrderFeedback;
 
     const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
-    const hasFeedback = existingFeedbackForType?.feedback !== null;
+    const hasFeedback = existingFeedback !== null && existingFeedbackForType?.feedback !== null;
 
     return (
       <div className="mt-4 flex items-center justify-between">
@@ -449,7 +455,7 @@ export function WorkOrderPopup({
               size="sm"
               onClick={() => handleFeedback('positive', summaryType)}
               className={`text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 
-                ${existingFeedbackForType?.feedback === 'positive' ? 'bg-green-50' : ''}`}
+                ${hasFeedback && existingFeedbackForType?.feedback === 'positive' ? 'bg-green-50' : ''}`}
             >
               <ThumbsUp className="h-4 w-4" />
             </Button>
@@ -458,7 +464,7 @@ export function WorkOrderPopup({
               size="sm"
               onClick={() => handleFeedback('negative', summaryType)}
               className={`text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200
-                ${existingFeedbackForType?.feedback === 'negative' ? 'bg-red-50' : ''}`}
+                ${hasFeedback && existingFeedbackForType?.feedback === 'negative' ? 'bg-red-50' : ''}`}
             >
               <ThumbsDown className="h-4 w-4" />
             </Button>
