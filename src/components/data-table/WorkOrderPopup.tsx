@@ -114,8 +114,21 @@ export function WorkOrderPopup({
     }
   }, [workOrder]);
   
+  // Reset checkbox states when work order changes or dialog opens
   useEffect(() => {
     if (workOrder && isOpen) {
+      // Reset the checkbox states
+      setCheckedSections({
+        technical: false,
+        service: false,
+        customer: false
+      });
+      
+      // Clear the global state for this work order
+      if (workOrderCheckStates[workOrder.WorkOrderId]) {
+        delete workOrderCheckStates[workOrder.WorkOrderId];
+      }
+      
       fetchWorkOrderSummary(workOrder.WorkOrderId);
     }
   }, [workOrder, isOpen]);
@@ -218,6 +231,18 @@ export function WorkOrderPopup({
 
       const data: ApprovalResponse = await response.json();
       
+      // Reset checkbox states after successful action
+      setCheckedSections({
+        technical: false,
+        service: false,
+        customer: false
+      });
+      
+      // Clear the global state for this work order
+      if (workOrderCheckStates[workOrder.WorkOrderId]) {
+        delete workOrderCheckStates[workOrder.WorkOrderId];
+      }
+
       if (actionType === 'approve') {
         toast.success(`Work Order #${workOrder.WorkOrderId} approved successfully`);
         onApprove(workOrder.WorkOrderId);
@@ -343,6 +368,24 @@ export function WorkOrderPopup({
     </div>
   );
 
+  // Add a cleanup function when dialog closes
+  const handleDialogClose = () => {
+    if (workOrder) {
+      // Reset checkbox states
+      setCheckedSections({
+        technical: false,
+        service: false,
+        customer: false
+      });
+      
+      // Clear the global state for this work order
+      if (workOrderCheckStates[workOrder.WorkOrderId]) {
+        delete workOrderCheckStates[workOrder.WorkOrderId];
+      }
+    }
+    onClose();
+  };
+
   if (!workOrder) return null;
   
   const getCriticalityBadge = (criticality: string) => {
@@ -403,7 +446,7 @@ export function WorkOrderPopup({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="w-[85vw] max-w-7xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
