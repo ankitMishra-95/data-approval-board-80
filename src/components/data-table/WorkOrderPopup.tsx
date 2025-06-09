@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WorkOrderSummary {
   operating_experience_summary: string;
@@ -67,6 +68,21 @@ interface FeedbackState {
   summaryType: 'safety' | 'operating' | 'hpt' | null;
 }
 
+interface FeedbackData {
+  feedback: 'positive' | 'negative' | null;
+  comment: string | null;
+}
+
+interface WorkOrderFeedback {
+  user_id: string;
+  work_order_id: string;
+  sop_feedback: FeedbackData;
+  oe_feedback: FeedbackData;
+  hpt_feedback: FeedbackData;
+  created_at: string;
+  updated_at: string;
+}
+
 // Store checkbox states globally
 const workOrderCheckStates: Record<string, {
   technical: boolean;
@@ -75,6 +91,14 @@ const workOrderCheckStates: Record<string, {
 }> = {};
 
 const AUTH_COOKIE_NAME = 'auth_token';
+
+interface FeedbackButtonsProps {
+  summaryType: 'safety' | 'operating' | 'hpt';
+  checkboxId: string;
+  isChecked: boolean;
+  onCheckChange: (checked: boolean) => void;
+  checkboxLabel: string;
+}
 
 export function WorkOrderPopup({ 
   workOrder, 
@@ -100,6 +124,8 @@ export function WorkOrderPopup({
     summaryType: null
   });
   const [feedbackText, setFeedbackText] = useState('');
+  const [existingFeedback, setExistingFeedback] = useState<WorkOrderFeedback | null>(null);
+  const { user } = useAuth();
   
   // Reset or initialize checkbox states when workOrder changes
   useEffect(() => {
@@ -130,6 +156,7 @@ export function WorkOrderPopup({
       }
       
       fetchWorkOrderSummary(workOrder.WorkOrderId);
+      fetchExistingFeedback(workOrder.WorkOrderId);
     }
   }, [workOrder, isOpen]);
 
@@ -181,6 +208,29 @@ export function WorkOrderPopup({
       });
     } finally {
       setIsLoadingSummary(false);
+    }
+  };
+
+  const fetchExistingFeedback = async (workOrderId: string) => {
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/feedback/${workOrderId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setExistingFeedback(data);
+      }
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
     }
   };
 
@@ -277,15 +327,33 @@ export function WorkOrderPopup({
   };
 
   const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt') => {
+    const feedbackKey = {
+      safety: 'sop_feedback',
+      operating: 'oe_feedback',
+      hpt: 'hpt_feedback'
+    }[summaryType] as keyof WorkOrderFeedback;
+
+    const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
+    
     setFeedbackState({
       isOpen: true,
       type,
       summaryType
     });
+
+    // Set existing feedback text if available and not null
+    if (existingFeedbackForType?.comment) {
+      setFeedbackText(existingFeedbackForType.comment);
+    } else {
+      setFeedbackText('');
+    }
   };
 
   const submitFeedback = async () => {
-    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) return;
+    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) {
+      toast.error('Unable to submit feedback. Please try again.');
+      return;
+    }
 
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
@@ -293,22 +361,40 @@ export function WorkOrderPopup({
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`${API_BASE_URL}/feedback/`, {
+      const feedbackField = {
+        safety: 'sop_feedback',
+        operating: 'oe_feedback',
+        hpt: 'hpt_feedback'
+      }[feedbackState.summaryType];
+
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          workorder_id: workOrder.WorkOrderId,
-          summary_type: feedbackState.summaryType,
-          feedback_type: feedbackState.type,
-          feedback_text: feedbackText
+          work_order_id: workOrder.WorkOrderId,
+          [feedbackField]: {
+            feedback: feedbackState.type,
+            comment: feedbackText
+          }
         })
       });
 
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
+      }
+
+      // Update local state with new feedback structure
+      if (existingFeedback) {
+        setExistingFeedback({
+          ...existingFeedback,
+          [feedbackField]: {
+            feedback: feedbackState.type,
+            comment: feedbackText
+          }
+        });
       }
 
       toast.success('Thank you for your feedback!');
@@ -320,53 +406,67 @@ export function WorkOrderPopup({
     }
   };
 
-  const FeedbackButtons = ({ 
+  const FeedbackButtons: React.FC<FeedbackButtonsProps> = ({ 
     summaryType,
     checkboxId,
     isChecked,
     onCheckChange,
     checkboxLabel
-  }: { 
-    summaryType: 'safety' | 'operating' | 'hpt';
-    checkboxId: string;
-    isChecked: boolean;
-    onCheckChange: (checked: boolean) => void;
-    checkboxLabel: string;
-  }) => (
-    <div className="mt-4 flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <Checkbox 
-          id={checkboxId}
-          checked={isChecked}
-          onCheckedChange={onCheckChange}
-        />
-        <label 
-          htmlFor={checkboxId}
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          {checkboxLabel}
-        </label>
+  }) => {
+    const feedbackKey = {
+      safety: 'sop_feedback',
+      operating: 'oe_feedback',
+      hpt: 'hpt_feedback'
+    }[summaryType] as keyof WorkOrderFeedback;
+
+    const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
+    const hasFeedback = existingFeedbackForType?.feedback !== null;
+
+    return (
+      <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id={checkboxId}
+            checked={isChecked}
+            onCheckedChange={onCheckChange}
+          />
+          <label 
+            htmlFor={checkboxId}
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            {checkboxLabel}
+          </label>
+        </div>
+        <div className="flex items-center gap-4">
+          {hasFeedback && (
+            <span className="text-sm text-gray-500">
+              Previous feedback: {existingFeedbackForType?.feedback}
+            </span>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleFeedback('positive', summaryType)}
+              className={`text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 
+                ${existingFeedbackForType?.feedback === 'positive' ? 'bg-green-50' : ''}`}
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleFeedback('negative', summaryType)}
+              className={`text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200
+                ${existingFeedbackForType?.feedback === 'negative' ? 'bg-red-50' : ''}`}
+            >
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleFeedback('positive', summaryType)}
-          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-        >
-          <ThumbsUp className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleFeedback('negative', summaryType)}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-        >
-          <ThumbsDown className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Add a cleanup function when dialog closes
   const handleDialogClose = () => {
@@ -717,7 +817,10 @@ export function WorkOrderPopup({
               onClick={submitFeedback}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Submit
+              {feedbackState.summaryType && existingFeedback?.[
+                feedbackState.summaryType === 'safety' ? 'sop_feedback' : 
+                feedbackState.summaryType === 'operating' ? 'oe_feedback' : 'hpt_feedback'
+              ]?.feedback !== null ? 'Update' : 'Submit'}
             </Button>
           </DialogFooter>
         </DialogContent>
