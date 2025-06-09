@@ -295,24 +295,51 @@ export function WorkOrderPopup({
     }
   };
 
-  const FeedbackButtons = ({ summaryType }: { summaryType: 'safety' | 'operating' | 'hpt' }) => (
-    <div className="mt-4 flex justify-end gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => handleFeedback('positive', summaryType)}
-        className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-      >
-        <ThumbsUp className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => handleFeedback('negative', summaryType)}
-        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-      >
-        <ThumbsDown className="h-4 w-4" />
-      </Button>
+  const FeedbackButtons = ({ 
+    summaryType,
+    checkboxId,
+    isChecked,
+    onCheckChange,
+    checkboxLabel
+  }: { 
+    summaryType: 'safety' | 'operating' | 'hpt';
+    checkboxId: string;
+    isChecked: boolean;
+    onCheckChange: (checked: boolean) => void;
+    checkboxLabel: string;
+  }) => (
+    <div className="mt-4 flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <Checkbox 
+          id={checkboxId}
+          checked={isChecked}
+          onCheckedChange={onCheckChange}
+        />
+        <label 
+          htmlFor={checkboxId}
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          {checkboxLabel}
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleFeedback('positive', summaryType)}
+          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+        >
+          <ThumbsUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleFeedback('negative', summaryType)}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+        >
+          <ThumbsDown className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 
@@ -466,24 +493,17 @@ export function WorkOrderPopup({
                         <div className="prose prose-sm max-w-none">
                           <ReactMarkdown>{summaryData.safety_rules_summary}</ReactMarkdown>
                         </div>
-                        <FeedbackButtons summaryType="safety" />
+                        <FeedbackButtons 
+                          summaryType="safety"
+                          checkboxId={`technical-checkbox-${workOrder.WorkOrderId}`}
+                          isChecked={checkedSections.technical}
+                          onCheckChange={(checked) => handleCheckSection('technical', checked)}
+                          checkboxLabel="I have read the standard operating procedures"
+                        />
                       </>
                     ) : (
                       <p>This work order requires special equipment and trained personnel to handle the {workOrder.WorkOrderTypeId.toLowerCase()} process. The technical complexity is rated as {workOrder.WorkOrderLifecycleStateId}, requiring appropriate safety measures and expertise.</p>
                     )}
-                    <div className="mt-4 flex items-center space-x-2">
-                      <Checkbox 
-                        id={`technical-checkbox-${workOrder.WorkOrderId}`} 
-                        checked={checkedSections.technical}
-                        onCheckedChange={(checked) => handleCheckSection('technical', checked === true)}
-                      />
-                      <label 
-                        htmlFor={`technical-checkbox-${workOrder.WorkOrderId}`} 
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        I have read the standard operating procedures
-                      </label>
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -504,24 +524,17 @@ export function WorkOrderPopup({
                         <div className="prose prose-sm max-w-none">
                           <ReactMarkdown>{summaryData.operating_experience_summary}</ReactMarkdown>
                         </div>
-                        <FeedbackButtons summaryType="operating" />
+                        <FeedbackButtons 
+                          summaryType="operating"
+                          checkboxId={`service-checkbox-${workOrder.WorkOrderId}`}
+                          isChecked={checkedSections.service}
+                          onCheckChange={(checked) => handleCheckSection('service', checked)}
+                          checkboxLabel="I have read the operating experiences"
+                        />
                       </>
                     ) : (
                       <p>This {workOrder.ServiceLevel} level service requires attention within {workOrder.WorkOrderLifecycleStateId === 'Critical' ? '24 hours' : workOrder.WorkOrderLifecycleStateId === 'High' ? '48 hours' : '72 hours'} of the reported issue.</p>
                     )}
-                    <div className="mt-4 flex items-center space-x-2">
-                      <Checkbox 
-                        id={`service-checkbox-${workOrder.WorkOrderId}`} 
-                        checked={checkedSections.service}
-                        onCheckedChange={(checked) => handleCheckSection('service', checked === true)}
-                      />
-                      <label 
-                        htmlFor={`service-checkbox-${workOrder.WorkOrderId}`} 
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        I have read the operating experiences
-                      </label>
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -542,24 +555,17 @@ export function WorkOrderPopup({
                         <div className="prose prose-sm max-w-none">
                           <ReactMarkdown>{summaryData.hpt_rules_summary}</ReactMarkdown>
                         </div>
-                        <FeedbackButtons summaryType="hpt" />
+                        <FeedbackButtons 
+                          summaryType="hpt"
+                          checkboxId={`customer-checkbox-${workOrder.WorkOrderId}`}
+                          isChecked={checkedSections.customer}
+                          onCheckChange={(checked) => handleCheckSection('customer', checked)}
+                          checkboxLabel="I have read the human performance tools"
+                        />
                       </>
                     ) : (
                       <p>Customer {workOrder.WorkerGroupId} has been with our service for {Math.floor(Math.random() * 8) + 1} years. They typically require {workOrder.WorkOrderTypeId} services on a quarterly basis.</p>
                     )}
-                    <div className="mt-4 flex items-center space-x-2">
-                      <Checkbox 
-                        id={`customer-checkbox-${workOrder.WorkOrderId}`} 
-                        checked={checkedSections.customer}
-                        onCheckedChange={(checked) => handleCheckSection('customer', checked === true)}
-                      />
-                      <label 
-                        htmlFor={`customer-checkbox-${workOrder.WorkOrderId}`} 
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        I have read the human performance tools
-                      </label>
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
