@@ -49,7 +49,7 @@ export function DataTable() {
   const [workOrderTypes, setWorkOrderTypes] = useState<string[]>([]);
   const [selectedWorkOrderType, setSelectedWorkOrderType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const itemsPerPage = 100;
+  const itemsPerPage = 50;
 
   useEffect(() => {
     // Load saved filter from localStorage

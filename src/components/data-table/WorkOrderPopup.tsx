@@ -239,7 +239,7 @@ export function WorkOrderPopup({
       setExistingFeedback(null);
     }
   };
-
+  
   const allSectionsChecked = 
     checkedSections.technical && 
     checkedSections.service && 
@@ -298,11 +298,11 @@ export function WorkOrderPopup({
       if (workOrderCheckStates[workOrder.WorkOrderId]) {
         delete workOrderCheckStates[workOrder.WorkOrderId];
       }
-
-      if (actionType === 'approve') {
+    
+    if (actionType === 'approve') {
         toast.success(`Work Order #${workOrder.WorkOrderId} approved successfully`);
         onApprove(workOrder.WorkOrderId);
-      } else {
+    } else {
         toast.error(`Work Order #${workOrder.WorkOrderId} rejected`);
         onReject(workOrder.WorkOrderId);
       }
@@ -410,6 +410,21 @@ export function WorkOrderPopup({
       console.error('Error submitting feedback:', error);
       toast.error('Failed to submit feedback. Please try again.');
     }
+  };
+
+  const getSubmitButtonText = () => {
+    if (!feedbackState.summaryType || !existingFeedback) {
+      return 'Submit';
+    }
+
+    const feedbackKey = {
+      safety: 'sop_feedback',
+      operating: 'oe_feedback',
+      hpt: 'hpt_feedback'
+    }[feedbackState.summaryType] as keyof WorkOrderFeedback;
+
+    const existingFeedbackForType = existingFeedback[feedbackKey] as FeedbackData;
+    return existingFeedbackForType?.feedback !== null ? 'Update' : 'Submit';
   };
 
   const FeedbackButtons: React.FC<FeedbackButtonsProps> = ({ 
@@ -531,13 +546,13 @@ export function WorkOrderPopup({
     
     // Check for variations of each status
     if (normalized.includes('PENDING')) {
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
     }
     if (normalized.includes('APPROVED')) {
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
     }
     if (normalized.includes('REJECTED')) {
-      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
     }
     if (normalized.includes('CANCELLED')) {
       return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Cancelled</Badge>;
@@ -823,10 +838,7 @@ export function WorkOrderPopup({
               onClick={submitFeedback}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {feedbackState.summaryType && existingFeedback?.[
-                feedbackState.summaryType === 'safety' ? 'sop_feedback' : 
-                feedbackState.summaryType === 'operating' ? 'oe_feedback' : 'hpt_feedback'
-              ]?.feedback !== null ? 'Update' : 'Submit'}
+              {getSubmitButtonText()}
             </Button>
           </DialogFooter>
         </DialogContent>
