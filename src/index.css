@@ -99,3 +99,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom ReactMarkdown Styling */
+.react-markdown p { 
+  margin-bottom: 1em; 
+} 
+
+.react-markdown ul { 
+  padding-left: 1.5em; 
+  list-style-type: disc; 
+}

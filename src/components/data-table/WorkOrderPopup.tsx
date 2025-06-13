@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import Cookies from 'js-cookie';
 import { API_BASE_URL } from "@/lib/constants";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -654,8 +656,13 @@ export function WorkOrderPopup({
                       </div>
                     ) : summaryData ? (
                       <>
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown>{summaryData.safety_rules_summary}</ReactMarkdown>
+                        <div className="react-markdown prose prose-sm max-w-none prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-4 prose-strong:font-bold prose-strong:text-gray-900">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]} 
+                            rehypePlugins={[rehypeRaw]}
+                          >
+                            {summaryData.safety_rules_summary}
+                          </ReactMarkdown>
                         </div>
                         <FeedbackButtons 
                           summaryType="safety"
@@ -685,8 +692,13 @@ export function WorkOrderPopup({
                       </div>
                     ) : summaryData ? (
                       <>
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown>{summaryData.operating_experience_summary}</ReactMarkdown>
+                        <div className="react-markdown prose prose-sm max-w-none prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-4 prose-strong:font-bold prose-strong:text-gray-900">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                          >
+                            {summaryData.operating_experience_summary}
+                          </ReactMarkdown>
                         </div>
                         <FeedbackButtons 
                           summaryType="operating"
@@ -716,8 +728,13 @@ export function WorkOrderPopup({
                       </div>
                     ) : summaryData ? (
                       <>
-                        <div className="prose prose-sm max-w-none">
-                          <ReactMarkdown>{summaryData.hpt_rules_summary}</ReactMarkdown>
+                        <div className="react-markdown prose prose-sm max-w-none prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-4 prose-strong:font-bold prose-strong:text-gray-900">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                          >
+                            {summaryData.hpt_rules_summary}
+                          </ReactMarkdown>
                         </div>
                         <FeedbackButtons 
                           summaryType="hpt"
