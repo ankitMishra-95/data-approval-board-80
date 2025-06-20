@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Cookies from 'js-cookie';
+import { forgotPassword, resetPassword, changePassword } from "@/lib/api/auth";
 
 interface User {
   id: string;
   email: string;
+  full_name?: string;
   is_active: boolean;
   is_superuser: boolean;
   is_verified: boolean;
@@ -18,6 +20,9 @@ interface AuthContextType {
   user: User | null;
   login: (usernameOrEmail: string, password: string) => Promise<boolean>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
 
 // API base URL
@@ -158,8 +163,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     toast.success("Logged out successfully");
   };
 
+  const handleForgotPassword = async (email: string): Promise<void> => {
+    try {
+      await forgotPassword({ email });
+      toast.success("Password reset email sent. Please check your inbox.");
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast.error("Failed to send reset email. Please try again.");
+      throw error;
+    }
+  };
+
+  const handleResetPassword = async (token: string, newPassword: string): Promise<void> => {
+    try {
+      await resetPassword({ token, newPassword });
+      toast.success("Password reset successfully!");
+    } catch (error) {
+      console.error("Reset password error:", error);
+      toast.error("Failed to reset password. The link may have expired. Please request a new one.");
+      throw error;
+    }
+  };
+
+  const handleChangePassword = async (oldPassword: string, newPassword: string): Promise<void> => {
+    try {
+      await changePassword({ oldPassword, newPassword });
+      toast.success("Password changed successfully!");
+    } catch (error) {
+      console.error("Change password error:", error);
+      toast.error("Failed to change password. Please check your current password and try again.");
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      isLoading, 
+      user, 
+      login, 
+      logout,
+      forgotPassword: handleForgotPassword,
+      resetPassword: handleResetPassword,
+      changePassword: handleChangePassword
+    }}>
       {children}
     </AuthContext.Provider>
   );

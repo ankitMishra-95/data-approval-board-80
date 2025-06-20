@@ -26,6 +26,7 @@ interface WorkOrderSummary {
   operating_experience_summary: string;
   hpt_rules_summary: string;
   safety_rules_summary: string;
+  similar_wo_summary: string;
 }
 
 interface WorkOrder {
@@ -67,7 +68,7 @@ interface ApprovalResponse {
 interface FeedbackState {
   isOpen: boolean;
   type: 'positive' | 'negative' | null;
-  summaryType: 'safety' | 'operating' | 'hpt' | null;
+  summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo' | null;
 }
 
 interface FeedbackData {
@@ -81,6 +82,7 @@ interface WorkOrderFeedback {
   sop_feedback: FeedbackData;
   oe_feedback: FeedbackData;
   hpt_feedback: FeedbackData;
+  similar_wo_feedback: FeedbackData;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +102,10 @@ interface FeedbackButtonsProps {
   isChecked: boolean;
   onCheckChange: (checked: boolean) => void;
   checkboxLabel: string;
+}
+
+interface FeedbackButtonsOnlyProps {
+  summaryType: 'similar_wo';
 }
 
 export function WorkOrderPopup({ 
@@ -183,7 +189,8 @@ export function WorkOrderPopup({
           setSummaryData({
             safety_rules_summary: "We're working on the summary—check back soon!",
             operating_experience_summary: "We're working on the summary—check back soon!",
-            hpt_rules_summary: "We're working on the summary—check back soon!"
+            hpt_rules_summary: "We're working on the summary—check back soon!",
+            similar_wo_summary: "We're working on the summary—check back soon!"
           });
           return;
         }
@@ -195,18 +202,20 @@ export function WorkOrderPopup({
         setSummaryData({
           safety_rules_summary: "We're working on the summary—check back soon!",
           operating_experience_summary: "We're working on the summary—check back soon!",
-          hpt_rules_summary: "We're working on the summary—check back soon!"
+          hpt_rules_summary: "We're working on the summary—check back soon!",
+          similar_wo_summary: "We're working on the summary—check back soon!"
         });
         return;
       }
-      
+
       setSummaryData(data);
     } catch (error) {
       console.error('Error fetching work order summary:', error);
       setSummaryData({
         safety_rules_summary: "We're working on the summary—check back soon!",
         operating_experience_summary: "We're working on the summary—check back soon!",
-        hpt_rules_summary: "We're working on the summary—check back soon!"
+        hpt_rules_summary: "We're working on the summary—check back soon!",
+        similar_wo_summary: "We're working on the summary—check back soon!"
       });
     } finally {
       setIsLoadingSummary(false);
@@ -219,48 +228,38 @@ export function WorkOrderPopup({
       if (!token) {
         throw new Error('No authentication token found');
       }
-
+      
       const response = await fetch(`${API_BASE_URL}/feedback/${workOrderId}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.status === 404) {
-        setExistingFeedback(null);
-        return;
-      }
-
       if (response.ok) {
         const data = await response.json();
         setExistingFeedback(data);
+      } else if (response.status === 404) {
+        setExistingFeedback(null);
       }
     } catch (error) {
-      console.error('Error fetching feedback:', error);
+      console.error('Error fetching existing feedback:', error);
       setExistingFeedback(null);
     }
   };
-  
-  const allSectionsChecked = 
-    checkedSections.technical && 
-    checkedSections.service && 
-    checkedSections.customer;
 
   const handleCheckSection = (section: 'technical' | 'service' | 'customer', checked: boolean) => {
-    if (!workOrder) return;
+    const newCheckedSections = { ...checkedSections, [section]: checked };
+    setCheckedSections(newCheckedSections);
     
-    const newState = {
-      ...checkedSections,
-      [section]: checked
-    };
-    
-    // Update state in component
-    setCheckedSections(newState);
-    
-    // Save state in global object
-    workOrderCheckStates[workOrder.WorkOrderId] = newState;
+    // Save to global state
+    if (workOrder) {
+      workOrderCheckStates[workOrder.WorkOrderId] = newCheckedSections;
+    }
   };
+
+  const allSectionsChecked = checkedSections.technical && checkedSections.service && checkedSections.customer;
 
   const handleConfirmAction = async () => {
     if (!workOrder || !actionType) return;
@@ -328,40 +327,35 @@ export function WorkOrderPopup({
 
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-    } catch (error) {
+      return format(new Date(dateString), 'MMM dd, yyyy HH:mm');
+    } catch {
       return dateString;
     }
   };
 
-  const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt') => {
-    const feedbackKey = {
-      safety: 'sop_feedback',
-      operating: 'oe_feedback',
-      hpt: 'hpt_feedback'
-    }[summaryType] as keyof WorkOrderFeedback;
-
-    const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
-    
+  const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo') => {
     setFeedbackState({
       isOpen: true,
       type,
       summaryType
     });
-
-    // Set existing feedback text if available and not null
-    if (existingFeedbackForType?.comment) {
-      setFeedbackText(existingFeedbackForType.comment);
-    } else {
-      setFeedbackText('');
+    let previousComment = '';
+    if (existingFeedback) {
+      if (summaryType === 'safety' && existingFeedback.sop_feedback?.comment) {
+        previousComment = existingFeedback.sop_feedback.comment;
+      } else if (summaryType === 'operating' && existingFeedback.oe_feedback?.comment) {
+        previousComment = existingFeedback.oe_feedback.comment;
+      } else if (summaryType === 'hpt' && existingFeedback.hpt_feedback?.comment) {
+        previousComment = existingFeedback.hpt_feedback.comment;
+      } else if (summaryType === 'similar_wo' && existingFeedback.similar_wo_feedback?.comment) {
+        previousComment = existingFeedback.similar_wo_feedback.comment;
+      }
     }
+    setFeedbackText(previousComment);
   };
 
   const submitFeedback = async () => {
-    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) {
-      toast.error('Unable to submit feedback. Please try again.');
-      return;
-    }
+    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) return;
 
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
@@ -369,11 +363,19 @@ export function WorkOrderPopup({
         throw new Error('No authentication token found');
       }
 
-      const feedbackField = {
-        safety: 'sop_feedback',
-        operating: 'oe_feedback',
-        hpt: 'hpt_feedback'
-      }[feedbackState.summaryType];
+      const feedbackData = {
+        feedback: feedbackState.type,
+        comment: feedbackText.trim() || null
+      };
+
+      const payload = {
+        work_order_id: workOrder.WorkOrderId,
+        user_id: user?.id || 'unknown',
+        ...(feedbackState.summaryType === 'safety' && { sop_feedback: feedbackData }),
+        ...(feedbackState.summaryType === 'operating' && { oe_feedback: feedbackData }),
+        ...(feedbackState.summaryType === 'hpt' && { hpt_feedback: feedbackData }),
+        ...(feedbackState.summaryType === 'similar_wo' && { similar_wo_feedback: feedbackData })
+      };
 
       const response = await fetch(`${API_BASE_URL}/feedback`, {
         method: 'POST',
@@ -381,33 +383,19 @@ export function WorkOrderPopup({
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          work_order_id: workOrder.WorkOrderId,
-          [feedbackField]: {
-            feedback: feedbackState.type,
-            comment: feedbackText
-          }
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
       }
 
-      // Update local state with new feedback structure
-      if (existingFeedback) {
-        setExistingFeedback({
-          ...existingFeedback,
-          [feedbackField]: {
-            feedback: feedbackState.type,
-            comment: feedbackText
-          }
-        });
-      }
-
-      toast.success('Thank you for your feedback!');
+      toast.success('Feedback submitted successfully!');
       setFeedbackState({ isOpen: false, type: null, summaryType: null });
       setFeedbackText('');
+      
+      // Refresh existing feedback
+      fetchExistingFeedback(workOrder.WorkOrderId);
     } catch (error) {
       console.error('Error submitting feedback:', error);
       toast.error('Failed to submit feedback. Please try again.');
@@ -415,18 +403,18 @@ export function WorkOrderPopup({
   };
 
   const getSubmitButtonText = () => {
-    if (!feedbackState.summaryType || !existingFeedback) {
-      return 'Submit';
+    if (!feedbackState.summaryType || !existingFeedback) return 'Submit';
+    let hasExisting = false;
+    if (feedbackState.summaryType === 'safety' && existingFeedback.sop_feedback?.feedback) {
+      hasExisting = true;
+    } else if (feedbackState.summaryType === 'operating' && existingFeedback.oe_feedback?.feedback) {
+      hasExisting = true;
+    } else if (feedbackState.summaryType === 'hpt' && existingFeedback.hpt_feedback?.feedback) {
+      hasExisting = true;
+    } else if (feedbackState.summaryType === 'similar_wo' && existingFeedback.similar_wo_feedback?.feedback) {
+      hasExisting = true;
     }
-
-    const feedbackKey = {
-      safety: 'sop_feedback',
-      operating: 'oe_feedback',
-      hpt: 'hpt_feedback'
-    }[feedbackState.summaryType] as keyof WorkOrderFeedback;
-
-    const existingFeedbackForType = existingFeedback[feedbackKey] as FeedbackData;
-    return existingFeedbackForType?.feedback !== null ? 'Update' : 'Submit';
+    return hasExisting ? 'Update' : 'Submit';
   };
 
   const FeedbackButtons: React.FC<FeedbackButtonsProps> = ({ 
@@ -460,6 +448,46 @@ export function WorkOrderPopup({
             {checkboxLabel}
           </label>
         </div>
+        <div className="flex items-center gap-4">
+          {hasFeedback && (
+            <span className="text-sm text-gray-500">
+              Previous feedback: {existingFeedbackForType?.feedback}
+            </span>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleFeedback('positive', summaryType)}
+              className={`text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 
+                ${hasFeedback && existingFeedbackForType?.feedback === 'positive' ? 'bg-green-50' : ''}`}
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleFeedback('negative', summaryType)}
+              className={`text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200
+                ${hasFeedback && existingFeedbackForType?.feedback === 'negative' ? 'bg-red-50' : ''}`}
+            >
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const FeedbackButtonsOnly: React.FC<FeedbackButtonsOnlyProps> = ({ 
+    summaryType
+  }) => {
+    const feedbackKey = 'similar_wo_feedback' as keyof WorkOrderFeedback;
+    const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
+    const hasFeedback = existingFeedback !== null && existingFeedbackForType?.feedback !== null;
+
+    return (
+      <div className="mt-4 flex items-center justify-end">
         <div className="flex items-center gap-4">
           {hasFeedback && (
             <span className="text-sm text-gray-500">
@@ -750,6 +778,36 @@ export function WorkOrderPopup({
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              <AccordionItem value="similar-workorders" className="bg-gray-50">
+                <AccordionTrigger className="text-base font-medium">
+                  OE from Similar Workorders (Experimental)
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 text-sm">
+                    {isLoadingSummary ? (
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gray-100 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    ) : summaryData ? (
+                      <>
+                        <div className="react-markdown prose prose-sm max-w-none prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-4 prose-strong:font-bold prose-strong:text-gray-900">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                          >
+                            {summaryData.similar_wo_summary}
+                          </ReactMarkdown>
+                        </div>
+                        <FeedbackButtonsOnly summaryType="similar_wo" />
+                      </>
+                    ) : (
+                      <p>No similar work order data available at this time.</p>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </div>
           
@@ -758,23 +816,23 @@ export function WorkOrderPopup({
               Status: {getStatusBadge(workOrder.approval_status)}
             </div>
             <div className="flex gap-2">
-              {workOrder.approval_status !== 'Rejected' && (
+              {!workOrder.approval_status.toUpperCase().includes('REJECTED') && (
                 <Button 
                   variant="outline" 
                   className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
                   onClick={() => initiateAction('reject')}
-                  disabled={workOrder.approval_status === 'Rejected' || !allSectionsChecked}
+                  disabled={!allSectionsChecked}
                 >
                   <X className="h-4 w-4 mr-2" />
                   Reject
                 </Button>
               )}
-              {workOrder.approval_status !== 'Approved' && (
+              {!workOrder.approval_status.toUpperCase().includes('APPROVED') && (
                 <Button 
                   variant="outline" 
                   className="text-green-600 hover:text-green-800 hover:bg-green-50 border-green-200"
                   onClick={() => initiateAction('approve')}
-                  disabled={workOrder.approval_status === 'Approved' || !allSectionsChecked}
+                  disabled={!allSectionsChecked}
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Approve

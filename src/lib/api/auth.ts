@@ -55,13 +55,18 @@ export const changePassword = async (data: PasswordChangeRequest) => {
     throw new Error('No authentication token found');
   }
 
+  const payload = {
+    current_password: data.oldPassword,
+    new_password: data.newPassword,
+  };
+
   const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {

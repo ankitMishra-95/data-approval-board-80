@@ -63,7 +63,18 @@ export function DataTable() {
     if (savedSearch) {
       setSearchQuery(savedSearch);
     }
-    
+
+    // Load saved page from localStorage
+    const savedPage = localStorage.getItem('currentPage');
+    if (savedPage && !isNaN(Number(savedPage))) {
+      setCurrentPage(Number(savedPage));
+    } else {
+      setCurrentPage(1);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('currentPage', String(currentPage));
     fetchData(currentPage);
   }, [currentPage]);
 
@@ -73,8 +84,29 @@ export function DataTable() {
       const types = Array.from(new Set(data.map(item => item.WorkOrderTypeId)));
       setWorkOrderTypes(types);
       
-      // Apply filters to data
-      applyFilters();
+      // Filter and search only the current page's data
+      let filteredResults = [...data];
+      if (selectedWorkOrderType) {
+        filteredResults = filteredResults.filter(item => item.WorkOrderTypeId === selectedWorkOrderType);
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        filteredResults = filteredResults.filter(item => {
+          const formattedDate = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
+          return Object.entries(item).some(([key, value]) => {
+            if (key === 'ExpectedStart') {
+              return formattedDate.includes(query);
+            }
+            return value && value.toString().toLowerCase().includes(query);
+          });
+        });
+      }
+      setFilteredData(filteredResults);
+      // If no results and a work order type filter is selected, clear the filter
+      if (filteredResults.length === 0 && selectedWorkOrderType) {
+        setSelectedWorkOrderType('');
+        localStorage.removeItem('workOrderTypeFilter');
+      }
     }
   }, [data, selectedWorkOrderType, searchQuery]);
 
@@ -110,55 +142,28 @@ export function DataTable() {
     }
   };
 
-  const applyFilters = () => {
-    let filteredResults = [...data];
-    
-    // Apply work order type filter if selected
-    if (selectedWorkOrderType) {
-      filteredResults = filteredResults.filter(item => 
-        item.WorkOrderTypeId === selectedWorkOrderType
-      );
-    }
-    
-    // Apply search query if provided
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filteredResults = filteredResults.filter(item => {
-        // Format the date for searching
-        const formattedDate = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
-        
-        // Check all fields including the formatted date
-        return Object.entries(item).some(([key, value]) => {
-          if (key === 'ExpectedStart') {
-            return formattedDate.includes(query);
-          }
-          return value && value.toString().toLowerCase().includes(query);
-        });
-      });
-    }
-    
-    setFilteredData(filteredResults);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+    localStorage.setItem('currentPage', String(page));
   };
 
   const handleApprove = (workOrderId: string) => {
     toast.success(`Work Order #${workOrderId} approved successfully`);
     const updatedData = data.map(item => 
-      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'APPROVED' } : item
+      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'Approved' } : item
     );
     setData(updatedData);
+    setFilteredData(updatedData);
     setIsPopupOpen(false);
   };
 
   const handleDisapprove = (workOrderId: string) => {
     toast.error(`Work Order #${workOrderId} rejected`);
     const updatedData = data.map(item => 
-      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'REJECTED' } : item
+      item.WorkOrderId === workOrderId ? { ...item, approval_status: 'Rejected' } : item
     );
     setData(updatedData);
+    setFilteredData(updatedData);
     setIsPopupOpen(false);
   };
 
