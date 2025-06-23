@@ -104,8 +104,13 @@ export function DataTable() {
       if (debouncedSearchQuery.trim()) {
         const searchTerm = debouncedSearchQuery.trim().toLowerCase();
         filteredData = filteredData.filter(item => {
-          return Object.values(item).some(val =>
-            val && val.toString().toLowerCase().includes(searchTerm)
+          // Check all fields, and also the formatted ExpectedStart date
+          const formattedStart = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
+          return (
+            Object.values(item).some(val =>
+              val && val.toString().toLowerCase().includes(searchTerm)
+            ) ||
+            formattedStart.includes(searchTerm)
           );
         });
       }
