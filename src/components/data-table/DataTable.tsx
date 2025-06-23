@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "./Pagination";
 import { WorkOrderPopup } from "./WorkOrderPopup";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle } from "lucide-react";
 import Cookies from 'js-cookie';
 import { format } from "date-fns";
 import { API_BASE_URL } from "@/lib/constants";
@@ -39,7 +39,6 @@ const AUTH_COOKIE_NAME = 'auth_token';
 
 export function DataTable() {
   const [data, setData] = useState<WorkOrder[]>([]);
-  const [filteredData, setFilteredData] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -49,102 +48,144 @@ export function DataTable() {
   const [workOrderTypes, setWorkOrderTypes] = useState<string[]>([]);
   const [selectedWorkOrderType, setSelectedWorkOrderType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [allWorkOrderTypes, setAllWorkOrderTypes] = useState<string[]>([]);
   const itemsPerPage = 50;
 
+  // Load saved state from localStorage on component mount
   useEffect(() => {
-    // Load saved filter from localStorage
     const savedFilter = localStorage.getItem('workOrderTypeFilter');
-    if (savedFilter) {
-      setSelectedWorkOrderType(savedFilter);
-    }
-    
-    // Load saved search query from localStorage
+    if (savedFilter) setSelectedWorkOrderType(savedFilter);
     const savedSearch = localStorage.getItem('searchQuery');
     if (savedSearch) {
       setSearchQuery(savedSearch);
+      setDebouncedSearchQuery(savedSearch);
     }
-
-    // Load saved page from localStorage
     const savedPage = localStorage.getItem('currentPage');
-    if (savedPage && !isNaN(Number(savedPage))) {
-      setCurrentPage(Number(savedPage));
-    } else {
-      setCurrentPage(1);
-    }
+    if (savedPage && !isNaN(Number(savedPage))) setCurrentPage(Number(savedPage));
+    setIsInitialLoad(false);
   }, []);
 
+  // Debounce search query
   useEffect(() => {
-    localStorage.setItem('currentPage', String(currentPage));
-    fetchData(currentPage);
-  }, [currentPage]);
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  useEffect(() => {
-    if (data.length > 0) {
-      // Extract unique work order types
-      const types = Array.from(new Set(data.map(item => item.WorkOrderTypeId)));
-      setWorkOrderTypes(types);
-      
-      // Filter and search only the current page's data
-      let filteredResults = [...data];
-      if (selectedWorkOrderType) {
-        filteredResults = filteredResults.filter(item => item.WorkOrderTypeId === selectedWorkOrderType);
-      }
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        filteredResults = filteredResults.filter(item => {
-          const formattedDate = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
-          return Object.entries(item).some(([key, value]) => {
-            if (key === 'ExpectedStart') {
-              return formattedDate.includes(query);
-            }
-            return value && value.toString().toLowerCase().includes(query);
-          });
-        });
-      }
-      setFilteredData(filteredResults);
-      // If no results and a work order type filter is selected, clear the filter
-      if (filteredResults.length === 0 && selectedWorkOrderType) {
-        setSelectedWorkOrderType('');
-        localStorage.removeItem('workOrderTypeFilter');
-      }
-    }
-  }, [data, selectedWorkOrderType, searchQuery]);
-
+  // Fetch data for the current page only, with search/filter as params
   const fetchData = async (page: number) => {
     setLoading(true);
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
+      if (!token) throw new Error('No authentication token found');
       const skip = (page - 1) * itemsPerPage;
-      const response = await fetch(`${API_BASE_URL}/work_orders?skip=${skip}&limit=${itemsPerPage}`, {
+      const params = new URLSearchParams({
+        skip: skip.toString(),
+        limit: itemsPerPage.toString(),
+      });
+      if (selectedWorkOrderType) params.append('work_order_type', selectedWorkOrderType);
+      if (debouncedSearchQuery.trim()) params.append('search', debouncedSearchQuery.trim());
+      const url = `${API_BASE_URL}/work_orders?${params.toString()}`;
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch work orders');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch work orders');
       const responseData: WorkOrderResponse = await response.json();
-      setData(responseData.data);
+      let filteredData = responseData.data;
+      if (selectedWorkOrderType) {
+        filteredData = filteredData.filter(item => item.WorkOrderTypeId === selectedWorkOrderType);
+      }
+      if (debouncedSearchQuery.trim()) {
+        const searchTerm = debouncedSearchQuery.trim().toLowerCase();
+        filteredData = filteredData.filter(item => {
+          return Object.values(item).some(val =>
+            val && val.toString().toLowerCase().includes(searchTerm)
+          );
+        });
+      }
+      setData(filteredData);
       setTotalItems(responseData.count);
-      setTotalPages(Math.ceil(responseData.count / itemsPerPage));
+      const newTotalPages = Math.ceil(responseData.count / itemsPerPage);
+      setTotalPages(newTotalPages);
+      if (page > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(1);
+        localStorage.setItem('currentPage', '1');
+      }
     } catch (error) {
       console.error('Error fetching work orders:', error);
-      toast.error("Failed to load work orders");
+      toast.error('Failed to load work orders');
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch data when page, search, or filter changes
+  useEffect(() => {
+    if (!isInitialLoad) {
+      localStorage.setItem('currentPage', String(currentPage));
+      localStorage.setItem('workOrderTypeFilter', selectedWorkOrderType);
+      localStorage.setItem('searchQuery', searchQuery);
+      fetchData(currentPage);
+    }
+  }, [currentPage, debouncedSearchQuery, selectedWorkOrderType, isInitialLoad]);
+
+  // Extract work order types from data when it changes
+  useEffect(() => {
+    if (data.length > 0) {
+      const types = Array.from(new Set(data.map(item => item.WorkOrderTypeId)));
+      setWorkOrderTypes(types);
+    }
+  }, [data]);
+
+  // On first load, fetch all work order types for the filter dropdown
+  useEffect(() => {
+    async function fetchAllTypes() {
+      try {
+        const token = Cookies.get(AUTH_COOKIE_NAME);
+        if (!token) return;
+        const params = new URLSearchParams({ skip: '0', limit: '1000' });
+        const url = `${API_BASE_URL}/work_orders?${params.toString()}`;
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) return;
+        const responseData: WorkOrderResponse = await response.json();
+        const types = Array.from(new Set(responseData.data.map(item => item.WorkOrderTypeId)));
+        setAllWorkOrderTypes(types);
+      } catch { /* ignore errors in type prefetch */ }
+    }
+    fetchAllTypes();
+  }, []);
+
+  // Handlers
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     localStorage.setItem('currentPage', String(page));
+  };
+  const handleWorkOrderTypeChange = (value: string) => {
+    setSelectedWorkOrderType(value);
+    localStorage.setItem('workOrderTypeFilter', value);
+  };
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    localStorage.setItem('searchQuery', value);
+  };
+  const clearFilters = () => {
+    setSelectedWorkOrderType('');
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    localStorage.removeItem('workOrderTypeFilter');
+    localStorage.removeItem('searchQuery');
   };
 
   const handleApprove = (workOrderId: string) => {
@@ -153,7 +194,6 @@ export function DataTable() {
       item.WorkOrderId === workOrderId ? { ...item, approval_status: 'Approved' } : item
     );
     setData(updatedData);
-    setFilteredData(updatedData);
     setIsPopupOpen(false);
   };
 
@@ -163,7 +203,6 @@ export function DataTable() {
       item.WorkOrderId === workOrderId ? { ...item, approval_status: 'Rejected' } : item
     );
     setData(updatedData);
-    setFilteredData(updatedData);
     setIsPopupOpen(false);
   };
 
@@ -174,24 +213,6 @@ export function DataTable() {
 
   const closeWorkOrderPopup = () => {
     setIsPopupOpen(false);
-  };
-
-  const handleWorkOrderTypeChange = (value: string) => {
-    setSelectedWorkOrderType(value);
-    localStorage.setItem('workOrderTypeFilter', value);
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    localStorage.setItem('searchQuery', value);
-  };
-
-  const clearFilters = () => {
-    setSelectedWorkOrderType('');
-    setSearchQuery('');
-    localStorage.removeItem('workOrderTypeFilter');
-    localStorage.removeItem('searchQuery');
   };
 
   const getCriticalityBadge = (criticality: string) => {
@@ -258,9 +279,6 @@ export function DataTable() {
     }
   };
 
-  // Determine which data to display (filtered or all)
-  const displayData = (selectedWorkOrderType || searchQuery.trim()) ? filteredData : data;
-
   return (
     <div className="w-full">
       <div className="mb-4 mt-4 flex flex-wrap gap-2 justify-end px-4">
@@ -284,7 +302,7 @@ export function DataTable() {
               <SelectValue placeholder="Filter by Work Order Type" />
             </SelectTrigger>
             <SelectContent>
-              {workOrderTypes.map((type) => (
+              {allWorkOrderTypes.map((type) => (
                 <SelectItem key={type} value={type}>{type}</SelectItem>
               ))}
             </SelectContent>
@@ -330,8 +348,8 @@ export function DataTable() {
                       ))}
                     </tr>
                   ))
-                ) : displayData.length > 0 ? (
-                  displayData.map((item) => (
+                ) : data.length > 0 ? (
+                  data.map((item) => (
                     <tr key={item.WorkOrderId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline" onClick={() => openWorkOrderPopup(item)}>
                         {item.WorkOrderId}
