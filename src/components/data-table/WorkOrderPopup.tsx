@@ -618,7 +618,7 @@ export function WorkOrderPopup({
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Customer Account</h4>
+                <h4 className="text-sm font-medium text-gray-500">Responsible Group</h4>
                 <p className="mt-1">{workOrder.WorkerGroupId}</p>
               </div>
               
