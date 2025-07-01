@@ -660,7 +660,7 @@ export function WorkOrderPopup({
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900 flex items-center justify-between">
               Required Reviews
-              <Button 
+              {/* <Button 
                 variant="ai"
                 size="sm"
                 className="flex items-center gap-2"
@@ -668,7 +668,7 @@ export function WorkOrderPopup({
               >
                 <Bot className="h-4 w-4" />
                 Ask AI Assistant
-              </Button>
+              </Button> */}
             </h3>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="technical-details" className="bg-white">
