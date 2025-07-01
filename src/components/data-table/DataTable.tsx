@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import Cookies from 'js-cookie';
 import { format } from "date-fns";
 import { API_BASE_URL } from "@/lib/constants";
@@ -35,6 +35,23 @@ interface WorkOrderResponse {
   };
 }
 
+interface FilterableColumn {
+  field: string;
+  label: string;
+  type: string;
+}
+
+interface FilterValue {
+  value: string;
+  label: string;
+  count: number;
+}
+
+interface SortConfig {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
 const AUTH_COOKIE_NAME = 'auth_token';
 
 export function DataTable() {
@@ -45,18 +62,25 @@ export function DataTable() {
   const [totalItems, setTotalItems] = useState(0);
   const [selectedWorkOrder, setSelectedWorkOrder] = useState<WorkOrder | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [workOrderTypes, setWorkOrderTypes] = useState<string[]>([]);
-  const [selectedWorkOrderType, setSelectedWorkOrderType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [allWorkOrderTypes, setAllWorkOrderTypes] = useState<string[]>([]);
   const itemsPerPage = 50;
+
+  // Backend-driven filtering and sorting state
+  const [filterableColumns, setFilterableColumns] = useState<FilterableColumn[]>([]);
+  const [filterValues, setFilterValues] = useState<Record<string, FilterValue[]>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState<string | null>(null);
+
+  // Track if the user has triggered sorting
+  const [userSorted, setUserSorted] = useState(false);
 
   // Load saved state from localStorage on component mount
   useEffect(() => {
-    const savedFilter = localStorage.getItem('workOrderTypeFilter');
-    if (savedFilter) setSelectedWorkOrderType(savedFilter);
+    const savedFilters = localStorage.getItem('activeFilters');
+    if (savedFilters) setActiveFilters(JSON.parse(savedFilters));
     const savedSearch = localStorage.getItem('searchQuery');
     if (savedSearch) {
       setSearchQuery(savedSearch);
@@ -64,6 +88,7 @@ export function DataTable() {
     }
     const savedPage = localStorage.getItem('currentPage');
     if (savedPage && !isNaN(Number(savedPage))) setCurrentPage(Number(savedPage));
+    // Do NOT restore sortConfig on first load
     setIsInitialLoad(false);
   }, []);
 
@@ -75,19 +100,141 @@ export function DataTable() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch data for the current page only, with search/filter as params
+  // Fetch filterable columns on component mount
+  useEffect(() => {
+    fetchFilterableColumns();
+  }, []);
+
+  // Fetch filter values when filterable columns change
+  useEffect(() => {
+    if (Array.isArray(filterableColumns) && 
+        filterableColumns.length > 0 && 
+        filterableColumns.some(column => column.field && typeof column.field === 'string')) {
+      fetchFilterValues();
+    }
+  }, [filterableColumns]);
+
+  const fetchFilterableColumns = async () => {
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) return;
+
+      console.log('Fetching filterable columns from:', `${API_BASE_URL}/work_orders/columns/filterable`);
+
+      const response = await fetch(`${API_BASE_URL}/work_orders/columns/filterable`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Filterable columns response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Filterable columns response data:', data);
+        
+        // Check if the response is an array or has a data property
+        const columns = Array.isArray(data) ? data : (data.data || data.columns || []);
+        console.log('Processed columns:', columns);
+        
+        if (Array.isArray(columns)) {
+          console.log('Setting filterable columns:', columns);
+          setFilterableColumns(columns);
+        } else {
+          console.error('Invalid filterable columns response:', data);
+          setFilterableColumns([]);
+        }
+      } else {
+        console.error('Failed to fetch filterable columns:', response.status);
+        setFilterableColumns([]);
+      }
+    } catch (error) {
+      console.error('Error fetching filterable columns:', error);
+      setFilterableColumns([]);
+    }
+  };
+
+  const fetchFilterValues = async () => {
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) return;
+
+      const filterValuesData: Record<string, FilterValue[]> = {};
+
+      for (const column of filterableColumns) {
+        // Skip if column.field is undefined or invalid
+        if (!column.field || typeof column.field !== 'string') {
+          console.warn('Skipping column with invalid field:', column);
+          continue;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE_URL}/work_orders/filter_values/${column.field}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Check if the response is an array or has a data property
+            const values = Array.isArray(data) ? data : (data.data || data.values || []);
+            if (Array.isArray(values)) {
+              filterValuesData[column.field] = values;
+            } else {
+              console.error(`Invalid filter values response for ${column.field}:`, data);
+              filterValuesData[column.field] = [];
+            }
+          } else {
+            console.error(`Failed to fetch filter values for ${column.field}:`, response.status);
+            filterValuesData[column.field] = [];
+          }
+        } catch (error) {
+          console.error(`Error fetching filter values for ${column.field}:`, error);
+          filterValuesData[column.field] = [];
+        }
+      }
+
+      setFilterValues(filterValuesData);
+    } catch (error) {
+      console.error('Error fetching filter values:', error);
+      setFilterValues({});
+    }
+  };
+
+  // Fetch data for the current page only, with search/filter/sort as params
   const fetchData = async (page: number) => {
     setLoading(true);
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
       if (!token) throw new Error('No authentication token found');
+      
       const skip = (page - 1) * itemsPerPage;
       const params = new URLSearchParams({
         skip: skip.toString(),
         limit: itemsPerPage.toString(),
       });
-      if (selectedWorkOrderType) params.append('work_order_type', selectedWorkOrderType);
-      if (debouncedSearchQuery.trim()) params.append('search', debouncedSearchQuery.trim());
+
+      // Add search query
+      if (debouncedSearchQuery.trim()) {
+        params.append('search', debouncedSearchQuery.trim());
+      }
+
+      // Add filters
+      Object.entries(activeFilters).forEach(([field, value]) => {
+        if (value) {
+          params.append(`filter_${field}`, value);
+        }
+      });
+
+      // Add sorting only if userSorted is true
+      if (userSorted && sortConfig && sortConfig.field && sortConfig.direction) {
+        params.append('sort_by', sortConfig.field);
+        params.append('sort_direction', sortConfig.direction);
+      }
+
       const url = `${API_BASE_URL}/work_orders?${params.toString()}`;
       const response = await fetch(url, {
         headers: {
@@ -95,29 +242,15 @@ export function DataTable() {
           'Content-Type': 'application/json',
         },
       });
+
       if (!response.ok) throw new Error('Failed to fetch work orders');
+      
       const responseData: WorkOrderResponse = await response.json();
-      let filteredData = responseData.data;
-      if (selectedWorkOrderType) {
-        filteredData = filteredData.filter(item => item.WorkOrderTypeId === selectedWorkOrderType);
-      }
-      if (debouncedSearchQuery.trim()) {
-        const searchTerm = debouncedSearchQuery.trim().toLowerCase();
-        filteredData = filteredData.filter(item => {
-          // Check all fields, and also the formatted ExpectedStart date
-          const formattedStart = format(new Date(item.ExpectedStart), 'MMM d, yyyy').toLowerCase();
-          return (
-            Object.values(item).some(val => 
-              val && val.toString().toLowerCase().includes(searchTerm)
-            ) ||
-            formattedStart.includes(searchTerm)
-          );
-        });
-      }
-      setData(filteredData);
+      setData(responseData.data);
       setTotalItems(responseData.count);
       const newTotalPages = Math.ceil(responseData.count / itemsPerPage);
       setTotalPages(newTotalPages);
+      
       if (page > newTotalPages && newTotalPages > 0) {
         setCurrentPage(1);
         localStorage.setItem('currentPage', '1');
@@ -130,68 +263,86 @@ export function DataTable() {
     }
   };
 
-  // Fetch data when page, search, or filter changes
+  // Fetch data when page, search, filters, or sort changes
   useEffect(() => {
     if (!isInitialLoad) {
       localStorage.setItem('currentPage', String(currentPage));
-      localStorage.setItem('workOrderTypeFilter', selectedWorkOrderType);
       localStorage.setItem('searchQuery', searchQuery);
+      localStorage.setItem('activeFilters', JSON.stringify(activeFilters));
+      if (sortConfig) {
+        localStorage.setItem('sortConfig', JSON.stringify(sortConfig));
+      }
       fetchData(currentPage);
     }
-  }, [currentPage, debouncedSearchQuery, selectedWorkOrderType, isInitialLoad]);
-
-  // Extract work order types from data when it changes
-  useEffect(() => {
-    if (data.length > 0) {
-      const types = Array.from(new Set(data.map(item => item.WorkOrderTypeId)));
-      setWorkOrderTypes(types);
-    }
-  }, [data]);
-
-  // On first load, fetch all work order types for the filter dropdown
-  useEffect(() => {
-    async function fetchAllTypes() {
-      try {
-        const token = Cookies.get(AUTH_COOKIE_NAME);
-        if (!token) return;
-        const params = new URLSearchParams({ skip: '0', limit: '1000' });
-        const url = `${API_BASE_URL}/work_orders?${params.toString()}`;
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!response.ok) return;
-        const responseData: WorkOrderResponse = await response.json();
-        const types = Array.from(new Set(responseData.data.map(item => item.WorkOrderTypeId)));
-        setAllWorkOrderTypes(types);
-      } catch { /* ignore errors in type prefetch */ }
-    }
-    fetchAllTypes();
-  }, []);
+  }, [currentPage, debouncedSearchQuery, activeFilters, sortConfig, isInitialLoad]);
 
   // Handlers
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     localStorage.setItem('currentPage', String(page));
   };
-  const handleWorkOrderTypeChange = (value: string) => {
-    setSelectedWorkOrderType(value);
-    localStorage.setItem('workOrderTypeFilter', value);
-  };
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
     localStorage.setItem('searchQuery', value);
   };
+
+  const handleFilterChange = (field: string, value: string) => {
+    const newFilters = { ...activeFilters };
+    if (value && value !== '__all__') {
+      newFilters[field] = value;
+    } else {
+      delete newFilters[field];
+    }
+    setActiveFilters(newFilters);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleSort = (field: string) => {
+    let newSortConfig: SortConfig;
+    
+    if (sortConfig?.field === field) {
+      // Toggle direction if same field
+      newSortConfig = {
+        field,
+        direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'
+      };
+    } else {
+      // New field, default to ascending
+      newSortConfig = { field, direction: 'asc' };
+    }
+    setSortConfig(newSortConfig);
+    setUserSorted(true);
+    setCurrentPage(1); // Reset to first page when sorting changes
+  };
+
   const clearFilters = () => {
-    setSelectedWorkOrderType('');
+    setActiveFilters({});
     setSearchQuery('');
     setDebouncedSearchQuery('');
-    localStorage.removeItem('workOrderTypeFilter');
+    setSortConfig(null);
+    localStorage.removeItem('activeFilters');
     localStorage.removeItem('searchQuery');
+    localStorage.removeItem('sortConfig');
+    setCurrentPage(1);
   };
+
+  const getSortIcon = (field: string) => {
+    if (sortConfig?.field !== field) {
+      return <ChevronsUpDown className="h-4 w-4" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <ChevronUp className="h-4 w-4" /> : 
+      <ChevronDown className="h-4 w-4" />;
+  };
+
+  const getColumnLabel = (field: string) => {
+    const column = filterableColumns.find(col => col.field === field);
+    return column?.label || field;
+  };
+
+  const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchQuery.trim() !== '';
 
   const handleApprove = (workOrderId: string) => {
     toast.success(`Work Order #${workOrderId} approved successfully`);
@@ -299,28 +450,39 @@ export function DataTable() {
         
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-gray-400" />
-          <Select 
-            value={selectedWorkOrderType} 
-            onValueChange={handleWorkOrderTypeChange}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by Work Order Type" />
-            </SelectTrigger>
-            <SelectContent>
-              {allWorkOrderTypes.map((type) => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           
-          {(selectedWorkOrderType || searchQuery) && (
+          {/* Dynamic Filter Dropdowns */}
+          {Array.isArray(filterableColumns) && filterableColumns
+            .filter(column => column.field && typeof column.field === 'string')
+            .map((column) => (
+            <div key={column.field} className="relative">
+              <Select 
+                value={activeFilters[column.field] || '__all__'} 
+                onValueChange={(value) => handleFilterChange(column.field, value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder={`Filter by ${column.label}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All {column.label}</SelectItem>
+                  {Array.isArray(filterValues[column.field]) && filterValues[column.field].map((filterValue) => (
+                    <SelectItem key={filterValue.value} value={filterValue.value}>
+                      {filterValue.label} ({filterValue.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          
+          {hasActiveFilters && (
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={clearFilters}
               className="text-xs"
             >
-              Clear
+              Clear All
             </Button>
           )}
         </div>
@@ -332,21 +494,93 @@ export function DataTable() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Work Order Type</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer Account</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Cost Type</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Service Level</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Start Date/Time</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('WorkOrderId')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Work Order
+                      {getSortIcon('WorkOrderId')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('WorkOrderTypeId')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Work Order Type
+                      {getSortIcon('WorkOrderTypeId')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('WorkerGroupId')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Responsible Group
+                      {getSortIcon('WorkerGroupId')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('Description')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Description
+                      {getSortIcon('Description')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('CostType')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Cost Type
+                      {getSortIcon('CostType')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('ServiceLevel')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Service Level
+                      {getSortIcon('ServiceLevel')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('ExpectedStart')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Start Date/Time
+                      {getSortIcon('ExpectedStart')}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('approval_status')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Status
+                      {getSortIcon('approval_status')}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   Array.from({ length: itemsPerPage }).map((_, index) => (
                     <tr key={index} className="animate-pulse">
-                      {Array.from({ length: 9 }).map((_, cellIndex) => (
+                      {Array.from({ length: 8 }).map((_, cellIndex) => (
                         <td key={cellIndex} className="px-6 py-4 whitespace-nowrap">
                           <div className="h-4 bg-gray-100 rounded w-24"></div>
                         </td>
@@ -374,7 +608,7 @@ export function DataTable() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
                       No work orders found matching the current filters.
                     </td>
                   </tr>

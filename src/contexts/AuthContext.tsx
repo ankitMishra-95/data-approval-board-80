@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Cookies from 'js-cookie';
 import { forgotPassword, resetPassword, changePassword } from "@/lib/api/auth";
+import { API_BASE_URL } from '@/lib/constants';
 
 interface User {
   id: string;
@@ -24,9 +25,6 @@ interface AuthContextType {
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
 }
-
-// API base URL
-const API_BASE_URL = "https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net";  // Direct backend URL
 
 // Cookie configuration
 const AUTH_COOKIE_NAME = 'auth_token';
@@ -75,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserProfile = async (token: string): Promise<User | null> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/users/me`, {
+      const response = await fetch(`${API_BASE_URL}/auth/users/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -100,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       formData.append('username', usernameOrEmail);
       formData.append('password', password);
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
+      const response = await fetch(`${API_BASE_URL}/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

@@ -1,4 +1,4 @@
-import { X, Check, ChevronDown, Bot, ThumbsUp, ThumbsDown } from "lucide-react";
+import { X, Check, ChevronDown, Bot, ThumbsUp, ThumbsDown, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ interface WorkOrderSummary {
   hpt_rules_summary: string;
   safety_rules_summary: string;
   similar_wo_summary: string;
+  hpt_sources?: string[];
+  safety_rules_sources?: string[];
 }
 
 interface WorkOrder {
@@ -107,6 +109,138 @@ interface FeedbackButtonsProps {
 interface FeedbackButtonsOnlyProps {
   summaryType: 'similar_wo';
 }
+
+interface DownloadableTagsProps {
+  sources: string[];
+  title: string;
+}
+
+const normalizeSignedUrl = (url: string) => {
+  try {
+    const urlObj = new URL(url);
+    // Encode only the pathname
+    const encodedPath = urlObj.pathname.split('/').map(encodeURIComponent).join('/');
+    // Rebuild the URL
+    return `${urlObj.origin}${encodedPath}?${urlObj.searchParams.toString()}`;
+  } catch {
+    return url;
+  }
+};
+
+const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) => {
+  const handleDownload = async (source: string) => {
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        toast.error('Authentication required');
+        return;
+      }
+
+      // Extract the filename from the source path
+      const filename = source.split('/').pop() || source;
+      
+      console.log('Attempting to download:', source);
+      console.log('Filename:', filename);
+      
+      // Get the signed URL from the API
+      const response = await fetch(`${API_BASE_URL}/files/download/${encodeURIComponent(source)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Download API response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download API error:', errorText);
+        throw new Error(`Failed to get download URL: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Download API response data:', data);
+      
+      let downloadUrl = data.signed_url;
+      console.log('Original signed URL:', downloadUrl);
+      
+      downloadUrl = normalizeSignedUrl(downloadUrl);
+      console.log('Normalized signed URL:', downloadUrl);
+
+      // Test if the URL is accessible
+      try {
+        const testResponse = await fetch(downloadUrl, { method: 'HEAD' });
+        console.log('Signed URL test response:', testResponse.status);
+        if (!testResponse.ok) {
+          console.error('Signed URL is not accessible:', testResponse.status);
+          toast.error('File is not accessible. Please try again later.');
+          return;
+        }
+      } catch (testError) {
+        console.error('Error testing signed URL:', testError);
+        toast.error('Unable to access file. Please try again later.');
+        return;
+      }
+
+      // Method 1: Try direct download with anchor tag
+      try {
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        link.target = '_blank'; // Open in new tab as fallback
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Downloading ${filename}`);
+        console.log('Download initiated successfully');
+      } catch (downloadError) {
+        console.error('Direct download failed:', downloadError);
+        
+        // Method 2: Fallback - open in new tab
+        try {
+          window.open(downloadUrl, '_blank');
+          toast.success(`Opening ${filename} in new tab`);
+          console.log('Opened in new tab as fallback');
+        } catch (windowError) {
+          console.error('Window open failed:', windowError);
+          toast.error('Download failed. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error(`Failed to download file: ${error.message}`);
+    }
+  };
+
+  if (!sources || sources.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+      <h4 className="text-sm font-medium text-blue-900 mb-2">{title}</h4>
+      <div className="flex flex-wrap gap-2">
+        {sources.map((source, index) => {
+          const filename = source.split('/').pop() || source;
+          const displayName = filename.replace('.pdf', '').replace(/_/g, ' ');
+          
+          return (
+            <button
+              key={index}
+              onClick={() => handleDownload(source)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md transition-colors"
+            >
+              <Download className="h-3 w-3" />
+              {displayName}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export function WorkOrderPopup({ 
   workOrder, 
@@ -618,7 +752,7 @@ export function WorkOrderPopup({
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Customer Account</h4>
+                <h4 className="text-sm font-medium text-gray-500">Responsible Group</h4>
                 <p className="mt-1">{workOrder.WorkerGroupId}</p>
               </div>
               
@@ -692,6 +826,10 @@ export function WorkOrderPopup({
                             {summaryData.safety_rules_summary}
                           </ReactMarkdown>
                         </div>
+                        <DownloadableTags 
+                          sources={summaryData.safety_rules_sources || []}
+                          title="Safety Rules Documents"
+                        />
                         <FeedbackButtons 
                           summaryType="safety"
                           checkboxId={`technical-checkbox-${workOrder.WorkOrderId}`}
@@ -764,6 +902,10 @@ export function WorkOrderPopup({
                             {summaryData.hpt_rules_summary}
                           </ReactMarkdown>
                         </div>
+                        <DownloadableTags 
+                          sources={summaryData.hpt_sources || []}
+                          title="Human Performance Tools Documents"
+                        />
                         <FeedbackButtons 
                           summaryType="hpt"
                           checkboxId={`customer-checkbox-${workOrder.WorkOrderId}`}

@@ -1,1 +1,1 @@
-export const API_BASE_URL = 'https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net/api'; 
+export const API_BASE_URL = 'https://dpc-api-dev-hpbna6b2cgccd7gh.southeastasia-01.azurewebsites.net/api'; 
