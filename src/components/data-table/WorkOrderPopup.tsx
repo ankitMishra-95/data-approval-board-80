@@ -177,50 +177,129 @@ const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) =
       const data = await response.json();
       console.log('Download API response data:', data);
       
-      let downloadUrl = data.signed_url;
-      console.log('Original signed URL:', downloadUrl);
+      const downloadUrl = data.download_url;
+      console.log('Original download URL:', downloadUrl);
       
-      downloadUrl = normalizeSignedUrl(downloadUrl);
-      console.log('Normalized signed URL:', downloadUrl);
-
-      // Test if the URL is accessible
-      try {
-        const testResponse = await fetch(downloadUrl, { method: 'HEAD' });
-        console.log('Signed URL test response:', testResponse.status);
-        if (!testResponse.ok) {
-          console.error('Signed URL is not accessible:', testResponse.status);
-          toast.error('File is not accessible. Please try again later.');
-          return;
-        }
-      } catch (testError) {
-        console.error('Error testing signed URL:', testError);
-        toast.error('Unable to access file. Please try again later.');
-        return;
+      if (!downloadUrl) {
+        throw new Error('No download URL received from API');
       }
+      
+      // For Azure Blob Storage URLs, we don't need to normalize the URL
+      // The URL is already properly formatted with the signature
+      console.log('Using Azure Blob Storage URL:', downloadUrl);
 
-      // Method 1: Try direct download with anchor tag
+      // Try to force download using multiple approaches
+      let downloadSuccess = false;
+      
+      // Method 1: Try fetch and blob download with proper MIME type
       try {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = filename;
-        link.target = '_blank'; // Open in new tab as fallback
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        console.log('Method 1: Attempting fetch and blob download...');
+        const fileResponse = await fetch(downloadUrl, {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'Accept': '*/*',
+          }
+        });
+
+        console.log('File fetch response status:', fileResponse.status);
+        console.log('File fetch response headers:', Object.fromEntries(fileResponse.headers.entries()));
+
+        if (!fileResponse.ok) {
+          throw new Error(`File fetch failed: ${fileResponse.status}`);
+        }
+
+        const contentType = fileResponse.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error('Response is HTML, likely an error page');
+        }
+
+        const blob = await fileResponse.blob();
+        console.log('Blob size:', blob.size);
+        console.log('Blob type:', blob.type);
+
+        if (blob.size === 0) {
+          throw new Error('Blob is empty');
+        }
+
+        // Create a new blob with proper MIME type for PDF
+        const mimeType = filename.toLowerCase().endsWith('.pdf') ? 'application/pdf' : blob.type;
+        const newBlob = new Blob([blob], { type: mimeType });
+        
+        // Create a download link for the blob with proper filename
+        const url = window.URL.createObjectURL(newBlob);
+        const blobLink = document.createElement('a');
+        blobLink.href = url;
+        blobLink.download = filename;
+        blobLink.style.display = 'none';
+        
+        // Force download by dispatching click event
+        document.body.appendChild(blobLink);
+        
+        // Try multiple ways to trigger the download
+        try {
+          blobLink.click();
+        } catch (clickError) {
+          console.log('Regular click failed, trying dispatchEvent...');
+          const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true
+          });
+          blobLink.dispatchEvent(clickEvent);
+        }
+        
+        document.body.removeChild(blobLink);
+        
+        // Clean up the object URL
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 1000);
         
         toast.success(`Downloading ${filename}`);
-        console.log('Download initiated successfully');
-      } catch (downloadError) {
-        console.error('Direct download failed:', downloadError);
+        console.log('Method 1: Blob download successful');
+        console.log('Download should start automatically. If not, check your browser settings.');
+        downloadSuccess = true;
         
-        // Method 2: Fallback - open in new tab
+      } catch (fetchError) {
+        console.error('Method 1: Fetch and blob download failed:', fetchError);
+      }
+
+      // Method 2: If Method 1 failed, try direct download with download attribute
+      if (!downloadSuccess) {
         try {
+          console.log('Method 2: Attempting direct download with download attribute...');
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.success(`Downloading ${filename}`);
+          console.log('Method 2: Direct download initiated');
+          downloadSuccess = true;
+          
+        } catch (directError) {
+          console.error('Method 2: Direct download failed:', directError);
+        }
+      }
+
+      // Method 3: If both methods failed, try opening in new tab
+      if (!downloadSuccess) {
+        try {
+          console.log('Method 3: Attempting to open in new tab...');
           window.open(downloadUrl, '_blank');
-          toast.success(`Opening ${filename} in new tab`);
-          console.log('Opened in new tab as fallback');
+          toast.success(`File opened in new tab. Please save manually as "${filename}"`);
+          console.log('Method 3: Opened in new tab as fallback');
         } catch (windowError) {
-          console.error('Window open failed:', windowError);
+          console.error('Method 3: Window open failed:', windowError);
           toast.error('Download failed. Please try again.');
         }
       }
