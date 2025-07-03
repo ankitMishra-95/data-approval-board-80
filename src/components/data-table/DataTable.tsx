@@ -35,12 +35,6 @@ interface WorkOrderResponse {
   };
 }
 
-interface FilterableColumn {
-  field: string;
-  label: string;
-  type: string;
-}
-
 interface FilterValue {
   value: string;
   label: string;
@@ -67,12 +61,10 @@ export function DataTable() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const itemsPerPage = 50;
 
-  // Backend-driven filtering and sorting state
-  const [filterableColumns, setFilterableColumns] = useState<FilterableColumn[]>([]);
-  const [filterValues, setFilterValues] = useState<Record<string, FilterValue[]>>({});
+  // Single filter for WorkOrderTypeId
+  const [workOrderTypeFilterValues, setWorkOrderTypeFilterValues] = useState<FilterValue[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
-  const [showFilterDropdown, setShowFilterDropdown] = useState<string | null>(null);
 
   // Track if the user has triggered sorting
   const [userSorted, setUserSorted] = useState(false);
@@ -100,109 +92,22 @@ export function DataTable() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch filterable columns on component mount
+  // Initialize WorkOrderTypeId filter values with hardcoded data
   useEffect(() => {
-    fetchFilterableColumns();
+    const hardcodedFilterValues: FilterValue[] = [
+      { value: "Admin", label: "Admin", count: 0 },
+      { value: "Billable - Corrective", label: "Billable - Corrective", count: 0 },
+      { value: "Billable - Preventive", label: "Billable - Preventive", count: 0 },
+      { value: "Billable - Project", label: "Billable - Project", count: 0 },
+      { value: "Billable-WRO Preventive", label: "Billable-WRO Preventive", count: 0 },
+      { value: "Corrective", label: "Corrective", count: 0 },
+      { value: "Preventive", label: "Preventive", count: 0 },
+      { value: "Project", label: "Project", count: 0 },
+      { value: "Project - Retirement", label: "Project - Retirement", count: 0 }
+    ];
+    
+    setWorkOrderTypeFilterValues(hardcodedFilterValues);
   }, []);
-
-  // Fetch filter values when filterable columns change
-  useEffect(() => {
-    if (Array.isArray(filterableColumns) && 
-        filterableColumns.length > 0 && 
-        filterableColumns.some(column => column.field && typeof column.field === 'string')) {
-      fetchFilterValues();
-    }
-  }, [filterableColumns]);
-
-  const fetchFilterableColumns = async () => {
-    try {
-      const token = Cookies.get(AUTH_COOKIE_NAME);
-      if (!token) return;
-
-      console.log('Fetching filterable columns from:', `${API_BASE_URL}/work_orders/columns/filterable`);
-
-      const response = await fetch(`${API_BASE_URL}/work_orders/columns/filterable`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Filterable columns response status:', response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Filterable columns response data:', data);
-        
-        // Check if the response is an array or has a data property
-        const columns = Array.isArray(data) ? data : (data.data || data.columns || []);
-        console.log('Processed columns:', columns);
-        
-        if (Array.isArray(columns)) {
-          console.log('Setting filterable columns:', columns);
-          setFilterableColumns(columns);
-        } else {
-          console.error('Invalid filterable columns response:', data);
-          setFilterableColumns([]);
-        }
-      } else {
-        console.error('Failed to fetch filterable columns:', response.status);
-        setFilterableColumns([]);
-      }
-    } catch (error) {
-      console.error('Error fetching filterable columns:', error);
-      setFilterableColumns([]);
-    }
-  };
-
-  const fetchFilterValues = async () => {
-    try {
-      const token = Cookies.get(AUTH_COOKIE_NAME);
-      if (!token) return;
-
-      const filterValuesData: Record<string, FilterValue[]> = {};
-
-      for (const column of filterableColumns) {
-        // Skip if column.field is undefined or invalid
-        if (!column.field || typeof column.field !== 'string') {
-          console.warn('Skipping column with invalid field:', column);
-          continue;
-        }
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/work_orders/filter_values/${column.field}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            // Check if the response is an array or has a data property
-            const values = Array.isArray(data) ? data : (data.data || data.values || []);
-            if (Array.isArray(values)) {
-              filterValuesData[column.field] = values;
-            } else {
-              console.error(`Invalid filter values response for ${column.field}:`, data);
-              filterValuesData[column.field] = [];
-            }
-          } else {
-            console.error(`Failed to fetch filter values for ${column.field}:`, response.status);
-            filterValuesData[column.field] = [];
-          }
-        } catch (error) {
-          console.error(`Error fetching filter values for ${column.field}:`, error);
-          filterValuesData[column.field] = [];
-        }
-      }
-
-      setFilterValues(filterValuesData);
-    } catch (error) {
-      console.error('Error fetching filter values:', error);
-      setFilterValues({});
-    }
-  };
 
   // Fetch data for the current page only, with search/filter/sort as params
   const fetchData = async (page: number) => {
@@ -225,7 +130,7 @@ export function DataTable() {
       // Add filters
       Object.entries(activeFilters).forEach(([field, value]) => {
         if (value) {
-          params.append(`filter_${field}`, value);
+          params.append(field, value);
         }
       });
 
@@ -337,10 +242,7 @@ export function DataTable() {
       <ChevronDown className="h-4 w-4" />;
   };
 
-  const getColumnLabel = (field: string) => {
-    const column = filterableColumns.find(col => col.field === field);
-    return column?.label || field;
-  };
+
 
   const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchQuery.trim() !== '';
 
@@ -451,29 +353,25 @@ export function DataTable() {
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-gray-400" />
           
-          {/* Dynamic Filter Dropdowns */}
-          {Array.isArray(filterableColumns) && filterableColumns
-            .filter(column => column.field && typeof column.field === 'string')
-            .map((column) => (
-            <div key={column.field} className="relative">
-              <Select 
-                value={activeFilters[column.field] || '__all__'} 
-                onValueChange={(value) => handleFilterChange(column.field, value)}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={`Filter by ${column.label}`} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All {column.label}</SelectItem>
-                  {Array.isArray(filterValues[column.field]) && filterValues[column.field].map((filterValue) => (
-                    <SelectItem key={filterValue.value} value={filterValue.value}>
-                      {filterValue.label} ({filterValue.count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {/* WorkOrderTypeId Filter */}
+          <div className="relative">
+            <Select 
+              value={activeFilters['WorkOrderTypeId'] || '__all__'} 
+              onValueChange={(value) => handleFilterChange('WorkOrderTypeId', value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by Work Order Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Work Order Types</SelectItem>
+                {Array.isArray(workOrderTypeFilterValues) && workOrderTypeFilterValues.map((filterValue) => (
+                  <SelectItem key={filterValue.value} value={filterValue.value}>
+                    {filterValue.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
           {hasActiveFilters && (
             <Button 

@@ -89,6 +89,20 @@ interface WorkOrderFeedback {
   updated_at: string;
 }
 
+interface ApprovalDetails {
+  message: string | null;
+  workorder_id: string;
+  status: string;
+  action_by: {
+    id: string;
+    email: string;
+    username: string;
+    full_name: string;
+    disabled: boolean;
+  };
+  action_date: string;
+}
+
 // Store checkbox states globally
 const workOrderCheckStates: Record<string, {
   technical: boolean;
@@ -142,12 +156,14 @@ const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) =
       console.log('Attempting to download:', source);
       console.log('Filename:', filename);
       
-      // Get the signed URL from the API
-      const response = await fetch(`${API_BASE_URL}/files/download/${encodeURIComponent(source)}`, {
+      // Use the POST /api/blob/download endpoint
+      const response = await fetch(`${API_BASE_URL}/blob/download`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ file_name: source })
       });
 
       console.log('Download API response status:', response.status);
@@ -226,6 +242,8 @@ const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) =
           const filename = source.split('/').pop() || source;
           const displayName = filename.replace('.pdf', '').replace(/_/g, ' ');
           
+          console.log('Sending filename to API:', source);
+          
           return (
             <button
               key={index}
@@ -267,6 +285,7 @@ export function WorkOrderPopup({
   });
   const [feedbackText, setFeedbackText] = useState('');
   const [existingFeedback, setExistingFeedback] = useState<WorkOrderFeedback | null>(null);
+  const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
   const { user } = useAuth();
   
   // Reset or initialize checkbox states when workOrder changes
@@ -299,6 +318,7 @@ export function WorkOrderPopup({
       
       fetchWorkOrderSummary(workOrder.WorkOrderId);
       fetchExistingFeedback(workOrder.WorkOrderId);
+      fetchApprovalDetails(workOrder.WorkOrderId);
     }
   }, [workOrder, isOpen]);
 
@@ -380,6 +400,33 @@ export function WorkOrderPopup({
     } catch (error) {
       console.error('Error fetching existing feedback:', error);
       setExistingFeedback(null);
+    }
+  };
+
+  const fetchApprovalDetails = async (workOrderId: string) => {
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/approval/${workOrderId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setApprovalDetails(data);
+      } else if (response.status === 404) {
+        setApprovalDetails(null);
+      }
+    } catch (error) {
+      console.error('Error fetching approval details:', error);
+      setApprovalDetails(null);
     }
   };
 
@@ -465,6 +512,43 @@ export function WorkOrderPopup({
     } catch {
       return dateString;
     }
+  };
+
+  const formatApprovalDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy \'at\' HH:mm');
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getApprovalStatusDisplay = () => {
+    if (!approvalDetails) return null;
+
+    const status = approvalDetails.status.toLowerCase();
+    const actionBy = approvalDetails.action_by;
+    const actionDate = formatApprovalDate(approvalDetails.action_date);
+
+    return (
+      <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-sm font-medium text-gray-700">
+            {status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : approvalDetails.status} by:
+          </span>
+          <span className="text-sm font-semibold text-gray-900">
+            {actionBy.full_name} ({actionBy.username}) 
+          </span>
+        </div>
+        <div className="text-xs text-gray-500">
+          {actionDate}
+        </div>
+        {actionBy.email && (
+          <div className="text-xs text-gray-500 mt-1">
+            {actionBy.email}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo') => {
@@ -729,6 +813,10 @@ export function WorkOrderPopup({
     return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">{status}</Badge>;
   };
 
+  if (!workOrder) {
+    return null;
+  }
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleDialogClose}>
@@ -786,6 +874,13 @@ export function WorkOrderPopup({
                 <h4 className="text-sm font-medium text-gray-500">Due Date</h4>
                 <p className="mt-1">{formatDate(workOrder.ExpectedEnd)}</p>
               </div>
+              
+              {approvalDetails && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500">Approved By</h4>
+                  <p className="mt-1 font-medium">{approvalDetails.action_by.full_name}</p>
+                </div>
+              )}
             </div>
           </div>
           
@@ -794,7 +889,7 @@ export function WorkOrderPopup({
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900 flex items-center justify-between">
               Required Reviews
-              <Button 
+              {/* <Button 
                 variant="ai"
                 size="sm"
                 className="flex items-center gap-2"
@@ -802,7 +897,7 @@ export function WorkOrderPopup({
               >
                 <Bot className="h-4 w-4" />
                 Ask AI Assistant
-              </Button>
+              </Button> */}
             </h3>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="technical-details" className="bg-white">
