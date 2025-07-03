@@ -22,6 +22,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 
+const AUTH_COOKIE_NAME = 'auth_token';
+
 interface WorkOrderSummary {
   operating_experience_summary: string;
   hpt_rules_summary: string;
@@ -29,6 +31,7 @@ interface WorkOrderSummary {
   similar_wo_summary: string;
   hpt_sources?: string[];
   safety_rules_sources?: string[];
+  oe_sources?: string[];
 }
 
 interface WorkOrder {
@@ -109,8 +112,6 @@ const workOrderCheckStates: Record<string, {
   service: boolean;
   customer: boolean;
 }> = {};
-
-const AUTH_COOKIE_NAME = 'auth_token';
 
 interface FeedbackButtonsProps {
   summaryType: 'safety' | 'operating' | 'hpt';
@@ -366,6 +367,7 @@ export function WorkOrderPopup({
   const [existingFeedback, setExistingFeedback] = useState<WorkOrderFeedback | null>(null);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
   const { user } = useAuth();
+  const [isApproving, setIsApproving] = useState(false);
   
   // Reset or initialize checkbox states when workOrder changes
   useEffect(() => {
@@ -523,13 +525,12 @@ export function WorkOrderPopup({
 
   const handleConfirmAction = async () => {
     if (!workOrder || !actionType) return;
-    
+    setIsApproving(true);
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
       if (!token) {
         throw new Error('No authentication token found');
       }
-
       const response = await fetch(`${API_BASE_URL}/approval/`, {
         method: 'POST',
         headers: {
@@ -541,39 +542,33 @@ export function WorkOrderPopup({
           approval_status: actionType === 'approve' ? 'APPROVED' : 'REJECTED'
         })
       });
-
       if (!response.ok) {
         throw new Error(`Failed to ${actionType} work order`);
       }
-
       const data: ApprovalResponse = await response.json();
-      
-      // Reset checkbox states after successful action
       setCheckedSections({
         technical: false,
         service: false,
         customer: false
       });
-      
-      // Clear the global state for this work order
       if (workOrderCheckStates[workOrder.WorkOrderId]) {
         delete workOrderCheckStates[workOrder.WorkOrderId];
       }
-    
-    if (actionType === 'approve') {
+      if (actionType === 'approve') {
         toast.success(`Work Order #${workOrder.WorkOrderId} approved successfully`);
         onApprove(workOrder.WorkOrderId);
-    } else {
+      } else {
         toast.error(`Work Order #${workOrder.WorkOrderId} rejected`);
         onReject(workOrder.WorkOrderId);
       }
     } catch (error) {
       console.error(`Error ${actionType}ing work order:`, error);
       toast.error(`Failed to ${actionType} work order. Please try again.`);
+    } finally {
+      setIsApproving(false);
+      setConfirmDialogOpen(false);
+      setActionType(null);
     }
-    
-    setConfirmDialogOpen(false);
-    setActionType(null);
   };
 
   const initiateAction = (type: 'approve' | 'reject') => {
@@ -603,31 +598,37 @@ export function WorkOrderPopup({
 
   const getApprovalStatusDisplay = () => {
     if (!approvalDetails) return null;
-
-    const status = approvalDetails.status.toLowerCase();
-    const actionBy = approvalDetails.action_by;
+    const status = (approvalDetails.status || '').toLowerCase();
+    const actionBy: { email?: string } = approvalDetails.action_by || {};
     const actionDate = formatApprovalDate(approvalDetails.action_date);
 
-    return (
-      <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-sm font-medium text-gray-700">
-            {status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : approvalDetails.status} by:
-          </span>
-          <span className="text-sm font-semibold text-gray-900">
-            {actionBy.full_name} ({actionBy.username}) 
-          </span>
-        </div>
-        <div className="text-xs text-gray-500">
-          {actionDate}
-        </div>
-        {actionBy.email && (
-          <div className="text-xs text-gray-500 mt-1">
-            {actionBy.email}
+    if (status === 'rejected') {
+      return (
+        <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-gray-700">Rejected by:</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {actionBy?.email || "Unknown"}
+            </span>
           </div>
-        )}
-      </div>
-    );
+          <div className="text-xs text-gray-500">{actionDate}</div>
+        </div>
+      );
+    }
+    if (status === 'approved') {
+      return (
+        <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-gray-700">Approved by:</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {actionBy?.email || "Unknown"}
+            </span>
+          </div>
+          <div className="text-xs text-gray-500">{actionDate}</div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo') => {
@@ -956,8 +957,12 @@ export function WorkOrderPopup({
               
               {approvalDetails && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500">Approved By</h4>
-                  <p className="mt-1 font-medium">{approvalDetails.action_by.full_name}</p>
+                  <h4 className="text-sm font-medium text-gray-500">
+                    {approvalDetails.status && approvalDetails.status.toLowerCase() === 'rejected'
+                      ? 'Rejected By'
+                      : 'Approved By'}
+                  </h4>
+                  <p className="mt-1 font-medium">{approvalDetails.action_by?.email || "Unknown"}</p>
                 </div>
               )}
             </div>
@@ -1040,6 +1045,12 @@ export function WorkOrderPopup({
                             {summaryData.operating_experience_summary}
                           </ReactMarkdown>
                         </div>
+                        {summaryData.oe_sources && summaryData.oe_sources.length > 0 && (
+                          <DownloadableTags
+                            sources={summaryData.oe_sources}
+                            title="Operating Experience Documents"
+                          />
+                        )}
                         <FeedbackButtons 
                           summaryType="operating"
                           checkboxId={`service-checkbox-${workOrder.WorkOrderId}`}
@@ -1137,9 +1148,13 @@ export function WorkOrderPopup({
                   variant="outline" 
                   className="text-red-600 hover:text-red-800 hover:bg-red-50 border-red-200"
                   onClick={() => initiateAction('reject')}
-                  disabled={!allSectionsChecked}
+                  disabled={!allSectionsChecked || isApproving}
                 >
-                  <X className="h-4 w-4 mr-2" />
+                  {isApproving && actionType === 'reject' ? (
+                    <span className="mr-2 animate-spin inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                  ) : (
+                    <X className="h-4 w-4 mr-2" />
+                  )}
                   Reject
                 </Button>
               )}
@@ -1148,9 +1163,13 @@ export function WorkOrderPopup({
                   variant="outline" 
                   className="text-green-600 hover:text-green-800 hover:bg-green-50 border-green-200"
                   onClick={() => initiateAction('approve')}
-                  disabled={!allSectionsChecked}
+                  disabled={!allSectionsChecked || isApproving}
                 >
-                  <Check className="h-4 w-4 mr-2" />
+                  {isApproving && actionType === 'approve' ? (
+                    <span className="mr-2 animate-spin inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
                   Approve
                 </Button>
               )}
