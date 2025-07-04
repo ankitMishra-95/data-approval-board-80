@@ -543,7 +543,14 @@ export function WorkOrderPopup({
         })
       });
       if (!response.ok) {
-        throw new Error(`Failed to ${actionType} work order`);
+        let errorMsg = `Failed to ${actionType} work order.`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.detail) {
+            errorMsg = errorData.detail;
+          }
+        } catch (e) { /* ignore JSON parse error */ }
+        throw new Error(errorMsg);
       }
       const data: ApprovalResponse = await response.json();
       setCheckedSections({
@@ -563,7 +570,7 @@ export function WorkOrderPopup({
       }
     } catch (error) {
       console.error(`Error ${actionType}ing work order:`, error);
-      toast.error(`Failed to ${actionType} work order. Please try again.`);
+      toast.error(error.message || `Failed to ${actionType} work order. Please try again.`);
     } finally {
       setIsApproving(false);
       setConfirmDialogOpen(false);
