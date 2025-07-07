@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import Cookies from 'js-cookie';
+import { API_BASE_URL } from '@/lib/constants';
 
 // Interface matching the exact API response structure
 interface WorkOrder {
@@ -56,7 +57,7 @@ const WorkOrders = () => {
       }
 
       const skip = page * ITEMS_PER_PAGE;
-      const response = await fetch(`https://dpc-api-g9hkfhaggbesd0fj.southeastasia-01.azurewebsites.net/api/work_orders?skip=${skip}&limit=${ITEMS_PER_PAGE}`, {
+      const response = await fetch(`${API_BASE_URL}/work_orders?skip=${skip}&limit=${ITEMS_PER_PAGE}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
