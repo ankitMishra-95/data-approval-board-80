@@ -29,6 +29,8 @@ interface WorkOrderSummary {
   hpt_rules_summary: string;
   safety_rules_summary: string;
   similar_wo_summary: string;
+  good_catch_summary?: string;
+  good_catch_sources?: string[];
   hpt_sources?: string[];
   safety_rules_sources?: string[];
   oe_sources?: string[];
@@ -70,15 +72,22 @@ interface ApprovalResponse {
   status: string;
 }
 
+interface ApprovalRequest {
+  workorder_id: string;
+  approval_status: 'APPROVED' | 'REJECTED';
+  comment?: string;
+}
+
 interface FeedbackState {
   isOpen: boolean;
   type: 'positive' | 'negative' | null;
-  summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo' | null;
+  summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo' | 'goodcatch' | null;
 }
 
 interface FeedbackData {
   feedback: 'positive' | 'negative' | null;
   comment: string | null;
+  options_selected?: string[];
 }
 
 interface WorkOrderFeedback {
@@ -88,6 +97,7 @@ interface WorkOrderFeedback {
   oe_feedback: FeedbackData;
   hpt_feedback: FeedbackData;
   similar_wo_feedback: FeedbackData;
+  goodcatch_feedback?: FeedbackData;
   created_at: string;
   updated_at: string;
 }
@@ -366,9 +376,17 @@ export function WorkOrderPopup({
   const [feedbackText, setFeedbackText] = useState('');
   const [existingFeedback, setExistingFeedback] = useState<WorkOrderFeedback | null>(null);
   const [approvalDetails, setApprovalDetails] = useState<ApprovalDetails | null>(null);
+  const [rejectionComment, setRejectionComment] = useState('');
   const { user } = useAuth();
   const [isApproving, setIsApproving] = useState(false);
   
+  const [goodCatchFeedbackType, setGoodCatchFeedbackType] = useState<'positive' | 'negative' | null>(null);
+  const [goodCatchOptionsSelected, setGoodCatchOptionsSelected] = useState<string[]>([]);
+  const [goodCatchComment, setGoodCatchComment] = useState('');
+  const [isSubmittingGoodCatch, setIsSubmittingGoodCatch] = useState(false);
+  
+  const [feedbackType, setFeedbackType] = useState<'positive' | 'negative' | null>(null);
+
   // Reset or initialize checkbox states when workOrder changes
   useEffect(() => {
     if (workOrder) {
@@ -425,7 +443,8 @@ export function WorkOrderPopup({
             safety_rules_summary: "We're working on the summary—check back soon!",
             operating_experience_summary: "We're working on the summary—check back soon!",
             hpt_rules_summary: "We're working on the summary—check back soon!",
-            similar_wo_summary: "We're working on the summary—check back soon!"
+            similar_wo_summary: "We're working on the summary—check back soon!",
+            good_catch_summary: "We're working on the summary—check back soon!"
           });
           return;
         }
@@ -438,7 +457,8 @@ export function WorkOrderPopup({
           safety_rules_summary: "We're working on the summary—check back soon!",
           operating_experience_summary: "We're working on the summary—check back soon!",
           hpt_rules_summary: "We're working on the summary—check back soon!",
-          similar_wo_summary: "We're working on the summary—check back soon!"
+          similar_wo_summary: "We're working on the summary—check back soon!",
+          good_catch_summary: "We're working on the summary—check back soon!"
         });
         return;
       }
@@ -450,7 +470,8 @@ export function WorkOrderPopup({
         safety_rules_summary: "We're working on the summary—check back soon!",
         operating_experience_summary: "We're working on the summary—check back soon!",
         hpt_rules_summary: "We're working on the summary—check back soon!",
-        similar_wo_summary: "We're working on the summary—check back soon!"
+        similar_wo_summary: "We're working on the summary—check back soon!",
+        good_catch_summary: "We're working on the summary—check back soon!"
       });
     } finally {
       setIsLoadingSummary(false);
@@ -525,23 +546,43 @@ export function WorkOrderPopup({
 
   const handleConfirmAction = async () => {
     if (!workOrder || !actionType) return;
+    
+    // Require comment for rejection
+    if (actionType === 'reject' && !rejectionComment.trim()) {
+      toast.error('Please provide a comment for rejection');
+      return;
+    }
+    
     setIsApproving(true);
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
       if (!token) {
         throw new Error('No authentication token found');
       }
+
+      const requestBody: {
+        workorder_id: string;
+        approval_status: 'APPROVED' | 'REJECTED';
+        comment?: string;
+      } = {
+        workorder_id: workOrder.WorkOrderId,
+        approval_status: actionType === 'approve' ? 'APPROVED' : 'REJECTED'
+      };
+
+      // Add comment only for rejection
+      if (actionType === 'reject') {
+        requestBody.comment = rejectionComment.trim();
+      }
+
       const response = await fetch(`${API_BASE_URL}/approval/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          workorder_id: workOrder.WorkOrderId,
-          approval_status: actionType === 'approve' ? 'APPROVED' : 'REJECTED'
-        })
+        body: JSON.stringify(requestBody)
       });
+
       if (!response.ok) {
         let errorMsg = `Failed to ${actionType} work order.`;
         try {
@@ -552,20 +593,26 @@ export function WorkOrderPopup({
         } catch (e) { /* ignore JSON parse error */ }
         throw new Error(errorMsg);
       }
+
       const data: ApprovalResponse = await response.json();
+      
+      // Reset checkbox states after successful action
       setCheckedSections({
         technical: false,
         service: false,
         customer: false
       });
+      
+      // Clear the global state for this work order
       if (workOrderCheckStates[workOrder.WorkOrderId]) {
         delete workOrderCheckStates[workOrder.WorkOrderId];
       }
+
       if (actionType === 'approve') {
-        toast.success(`Work Order #${workOrder.WorkOrderId} approved successfully`);
+        toast.success(`Please note: The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID ${workOrder.WorkOrderId}.`);
         onApprove(workOrder.WorkOrderId);
       } else {
-        toast.error(`Work Order #${workOrder.WorkOrderId} rejected`);
+        toast.success(`Please note: The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID ${workOrder.WorkOrderId}.`);
         onReject(workOrder.WorkOrderId);
       }
     } catch (error) {
@@ -575,6 +622,7 @@ export function WorkOrderPopup({
       setIsApproving(false);
       setConfirmDialogOpen(false);
       setActionType(null);
+      setRejectionComment(''); // Clear comment after action
     }
   };
 
@@ -638,50 +686,100 @@ export function WorkOrderPopup({
     return null;
   };
 
-  const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo') => {
+  const handleFeedback = (type: 'positive' | 'negative', summaryType: 'safety' | 'operating' | 'hpt' | 'similar_wo' | 'goodcatch') => {
+    setFeedbackType(type);
     setFeedbackState({
       isOpen: true,
-      type,
+      type: null,
       summaryType
     });
+
     let previousComment = '';
+    let previousOptions: string[] = [];
     if (existingFeedback) {
-      if (summaryType === 'safety' && existingFeedback.sop_feedback?.comment) {
-        previousComment = existingFeedback.sop_feedback.comment;
-      } else if (summaryType === 'operating' && existingFeedback.oe_feedback?.comment) {
-        previousComment = existingFeedback.oe_feedback.comment;
-      } else if (summaryType === 'hpt' && existingFeedback.hpt_feedback?.comment) {
-        previousComment = existingFeedback.hpt_feedback.comment;
-      } else if (summaryType === 'similar_wo' && existingFeedback.similar_wo_feedback?.comment) {
-        previousComment = existingFeedback.similar_wo_feedback.comment;
+      if (summaryType === 'safety' && existingFeedback.sop_feedback?.options_selected) {
+        previousOptions = existingFeedback.sop_feedback.options_selected;
+        previousComment = existingFeedback.sop_feedback.comment || '';
+      } else if (summaryType === 'operating' && existingFeedback.oe_feedback?.options_selected) {
+        previousOptions = existingFeedback.oe_feedback.options_selected;
+        previousComment = existingFeedback.oe_feedback.comment || '';
+      } else if (summaryType === 'hpt' && existingFeedback.hpt_feedback?.options_selected) {
+        previousOptions = existingFeedback.hpt_feedback.options_selected;
+        previousComment = existingFeedback.hpt_feedback.comment || '';
+      } else if (summaryType === 'similar_wo' && existingFeedback.similar_wo_feedback?.options_selected) {
+        previousOptions = existingFeedback.similar_wo_feedback.options_selected;
+        previousComment = existingFeedback.similar_wo_feedback.comment || '';
+      } else if (summaryType === 'goodcatch' && existingFeedback.goodcatch_feedback?.options_selected) {
+        previousOptions = existingFeedback.goodcatch_feedback.options_selected;
+        previousComment = existingFeedback.goodcatch_feedback.comment || '';
       }
     }
+    setFeedbackOptionsSelected(previousOptions);
     setFeedbackText(previousComment);
   };
 
-  const submitFeedback = async () => {
-    if (!workOrder || !feedbackState.type || !feedbackState.summaryType) return;
+  const FEEDBACK_OPTIONS = [
+    'Clear and Concise',
+    'Technically Accurate',
+    'Attention to Detail',
+    'Useful for Decision Making',
+    'Lacks Context or Relevance',
+    'Vague or Ambiguous',
+    'Missing Critical Information',
+    'Poor Structure or Grammar',
+  ];
+  const FEEDBACK_POSITIVE_OPTIONS = [
+    'Clear and Concise',
+    'Technically Accurate',
+    'Attention to Detail',
+    'Useful for Decision Making',
+  ];
+  const FEEDBACK_NEGATIVE_OPTIONS = [
+    'Lacks Context or Relevance',
+    'Vague or Ambiguous',
+    'Missing Critical Information',
+    'Poor Structure or Grammar',
+  ];
+  const [feedbackOptionsSelected, setFeedbackOptionsSelected] = useState<string[]>([]);
 
+  const handleFeedbackOptionToggle = (option: string) => {
+    setFeedbackOptionsSelected((prev) =>
+      prev.includes(option)
+        ? prev.filter((o) => o !== option)
+        : [...prev, option]
+    );
+  };
+
+  const submitFeedback = async () => {
+    if (!workOrder || !feedbackType || !feedbackState.summaryType) return;
+    if (feedbackOptionsSelected.length === 0) {
+      toast.error('Please select at least one feedback option.');
+      return;
+    }
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
       if (!token) {
         throw new Error('No authentication token found');
       }
-
       const feedbackData = {
-        feedback: feedbackState.type,
-        comment: feedbackText.trim() || null
+        feedback: feedbackType,
+        options_selected: feedbackOptionsSelected,
+        comment: feedbackText.trim() || null,
       };
-
-      const payload = {
+      const payload: Record<string, unknown> = {
         work_order_id: workOrder.WorkOrderId,
-        user_id: user?.id || 'unknown',
-        ...(feedbackState.summaryType === 'safety' && { sop_feedback: feedbackData }),
-        ...(feedbackState.summaryType === 'operating' && { oe_feedback: feedbackData }),
-        ...(feedbackState.summaryType === 'hpt' && { hpt_feedback: feedbackData }),
-        ...(feedbackState.summaryType === 'similar_wo' && { similar_wo_feedback: feedbackData })
       };
-
+      if (feedbackState.summaryType === 'safety') {
+        payload.sop_feedback = feedbackData;
+      } else if (feedbackState.summaryType === 'operating') {
+        payload.oe_feedback = feedbackData;
+      } else if (feedbackState.summaryType === 'hpt') {
+        payload.hpt_feedback = feedbackData;
+      } else if (feedbackState.summaryType === 'similar_wo') {
+        payload.similar_wo_feedback = feedbackData;
+      } else if (feedbackState.summaryType === 'goodcatch') {
+        payload.goodcatch_feedback = feedbackData;
+      }
       const response = await fetch(`${API_BASE_URL}/feedback`, {
         method: 'POST',
         headers: {
@@ -690,16 +788,14 @@ export function WorkOrderPopup({
         },
         body: JSON.stringify(payload)
       });
-
       if (!response.ok) {
         throw new Error('Failed to submit feedback');
       }
-
       toast.success('Feedback submitted successfully!');
       setFeedbackState({ isOpen: false, type: null, summaryType: null });
       setFeedbackText('');
-      
-      // Refresh existing feedback
+      setFeedbackType(null);
+      setFeedbackOptionsSelected([]);
       fetchExistingFeedback(workOrder.WorkOrderId);
     } catch (error) {
       console.error('Error submitting feedback:', error);
@@ -718,8 +814,63 @@ export function WorkOrderPopup({
       hasExisting = true;
     } else if (feedbackState.summaryType === 'similar_wo' && existingFeedback.similar_wo_feedback?.feedback) {
       hasExisting = true;
+    } else if (feedbackState.summaryType === 'goodcatch' && existingFeedback.goodcatch_feedback?.feedback) {
+      hasExisting = true;
     }
     return hasExisting ? 'Update' : 'Submit';
+  };
+
+  const handleGoodCatchOptionToggle = (option: string) => {
+    setGoodCatchOptionsSelected((prev) =>
+      prev.includes(option)
+        ? prev.filter((o) => o !== option)
+        : [...prev, option]
+    );
+  };
+
+  const handleSubmitGoodCatchFeedback = async () => {
+    if (!workOrder) return;
+    if (!goodCatchFeedbackType) {
+      toast.error('Please select Good or Bad for Good Catch feedback.');
+      return;
+    }
+    setIsSubmittingGoodCatch(true);
+    try {
+      const token = Cookies.get(AUTH_COOKIE_NAME);
+      if (!token) throw new Error('No authentication token found');
+      const payload = {
+        work_order_id: workOrder.WorkOrderId,
+        goodcatch_feedback: {
+          feedback: goodCatchFeedbackType,
+          comment: goodCatchComment.trim(),
+          options_selected: goodCatchOptionsSelected,
+        },
+      };
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        let errorMsg = 'Failed to submit Good Catch feedback.';
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.detail) errorMsg = errorData.detail;
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
+      toast.success('Good Catch feedback submitted successfully!');
+      setGoodCatchFeedbackType(null);
+      setGoodCatchOptionsSelected([]);
+      setGoodCatchComment('');
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit Good Catch feedback.');
+    } finally {
+      setIsSubmittingGoodCatch(false);
+    }
   };
 
   const FeedbackButtons: React.FC<FeedbackButtonsProps> = ({ 
@@ -1142,6 +1293,43 @@ export function WorkOrderPopup({
                   </div>
                 </AccordionContent>
               </AccordionItem>
+
+              <AccordionItem value="good-catch-summary" className="bg-white">
+                <AccordionTrigger className="text-base font-medium">
+                  Good Catch Summary
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 text-sm">
+                    {isLoadingSummary ? (
+                      <div className="animate-pulse">
+                        <div className="h-4 bg-gray-100 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+                      </div>
+                    ) : !workOrder.is_summary_generated ? (
+                      <p>We're working on the summary—check back soon!</p>
+                    ) : summaryData ? (
+                      <>
+                        <div className="react-markdown prose prose-sm max-w-none prose-headings:font-semibold prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-4 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-4 prose-strong:font-bold prose-strong:text-gray-900">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                          >
+                            {summaryData.good_catch_summary}
+                          </ReactMarkdown>
+                        </div>
+                        {summaryData.good_catch_sources && summaryData.good_catch_sources.length > 0 && (
+                          <DownloadableTags
+                            sources={summaryData.good_catch_sources}
+                            title="Good Catch Documents"
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <p>No good catch summary available for this work order.</p>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
             </Accordion>
           </div>
           
@@ -1198,13 +1386,36 @@ export function WorkOrderPopup({
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          
+          {actionType === 'reject' && (
+            <div className="space-y-2">
+              <Label htmlFor="rejection-comment" className="text-sm font-medium">
+                Rejection Comment *
+              </Label>
+              <Textarea
+                id="rejection-comment"
+                placeholder="Please provide a reason for rejection..."
+                value={rejectionComment}
+                onChange={(e) => setRejectionComment(e.target.value)}
+                className="min-h-[100px]"
+                required
+              />
+            </div>
+          )}
+          
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              setConfirmDialogOpen(false);
+              setRejectionComment('');
+            }}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmAction}
               className={actionType === 'approve' 
                 ? "bg-green-600 hover:bg-green-700" 
                 : "bg-red-600 hover:bg-red-700"}
+              disabled={actionType === 'reject' && !rejectionComment.trim()}
             >
               {actionType === 'approve' ? 'Approve' : 'Reject'}
             </AlertDialogAction>
@@ -1221,7 +1432,7 @@ export function WorkOrderPopup({
         />
       )}
 
-      <Dialog open={feedbackState.isOpen} onOpenChange={(open) => !open && setFeedbackState({ isOpen: false, type: null, summaryType: null })}>
+      <Dialog open={feedbackState.isOpen} onOpenChange={(open) => { if (!open) { setFeedbackState({ isOpen: false, type: null, summaryType: null }); setFeedbackType(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-blue-900">Provide Feedback</DialogTitle>
@@ -1232,6 +1443,20 @@ export function WorkOrderPopup({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="feedback" className="text-blue-900">Your Feedback</Label>
+              {feedbackType && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {(feedbackType === 'positive' ? FEEDBACK_POSITIVE_OPTIONS : FEEDBACK_NEGATIVE_OPTIONS).map(option => (
+                    <label key={option} className="flex items-center gap-1 border rounded px-2 py-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={feedbackOptionsSelected.includes(option)}
+                        onChange={() => setFeedbackOptionsSelected(prev => prev.includes(option) ? prev.filter(o => o !== option) : [...prev, option])}
+                      />
+                      <span className="text-xs">{option}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <Textarea
                 id="feedback"
                 placeholder="What could be improved? Please provide detailed feedback..."
@@ -1245,7 +1470,7 @@ export function WorkOrderPopup({
             <Button
               type="button"
               variant="outline"
-              onClick={() => setFeedbackState({ isOpen: false, type: null, summaryType: null })}
+              onClick={() => { setFeedbackState({ isOpen: false, type: null, summaryType: null }); setFeedbackType(null); }}
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
             >
               Cancel
@@ -1254,6 +1479,7 @@ export function WorkOrderPopup({
               type="button" 
               onClick={submitFeedback}
               className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={feedbackOptionsSelected.length === 0 || !feedbackType}
             >
               {getSubmitButtonText()}
             </Button>
