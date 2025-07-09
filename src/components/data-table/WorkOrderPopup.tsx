@@ -132,12 +132,13 @@ interface FeedbackButtonsProps {
 }
 
 interface FeedbackButtonsOnlyProps {
-  summaryType: 'similar_wo';
+  summaryType: 'similar_wo' | 'goodcatch';
 }
 
 interface DownloadableTagsProps {
   sources: string[];
   title: string;
+  disabled?: boolean;
 }
 
 const normalizeSignedUrl = (url: string) => {
@@ -152,7 +153,7 @@ const normalizeSignedUrl = (url: string) => {
   }
 };
 
-const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) => {
+const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title, disabled }) => {
   const handleDownload = async (source: string) => {
     try {
       const token = Cookies.get(AUTH_COOKIE_NAME);
@@ -338,7 +339,8 @@ const DownloadableTags: React.FC<DownloadableTagsProps> = ({ sources, title }) =
             <button
               key={index}
               onClick={() => handleDownload(source)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md transition-colors"
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${disabled ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-60' : 'text-blue-700 bg-blue-100 hover:bg-blue-200 border-blue-300'}`}
+              disabled={disabled}
             >
               <Download className="h-3 w-3" />
               {displayName}
@@ -609,10 +611,8 @@ export function WorkOrderPopup({
       }
 
       if (actionType === 'approve') {
-        toast.success(`Please note: The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID ${workOrder.WorkOrderId}.`);
         onApprove(workOrder.WorkOrderId);
       } else {
-        toast.success(`Please note: The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID ${workOrder.WorkOrderId}.`);
         onReject(workOrder.WorkOrderId);
       }
     } catch (error) {
@@ -938,7 +938,7 @@ export function WorkOrderPopup({
   const FeedbackButtonsOnly: React.FC<FeedbackButtonsOnlyProps> = ({ 
     summaryType
   }) => {
-    const feedbackKey = 'similar_wo_feedback' as keyof WorkOrderFeedback;
+    const feedbackKey = summaryType === 'similar_wo' ? 'similar_wo_feedback' : 'goodcatch_feedback' as keyof WorkOrderFeedback;
     const existingFeedbackForType = existingFeedback?.[feedbackKey] as FeedbackData;
     const hasFeedback = existingFeedback !== null && existingFeedbackForType?.feedback !== null;
 
@@ -1160,7 +1160,9 @@ export function WorkOrderPopup({
                             remarkPlugins={[remarkGfm]} 
                             rehypePlugins={[rehypeRaw]}
                           >
-                            {summaryData.safety_rules_summary}
+                            {summaryData.safety_rules_summary
+                              ? summaryData.safety_rules_summary
+                              : "We're working on the summary—check back soon!"}
                           </ReactMarkdown>
                         </div>
                         <DownloadableTags 
@@ -1200,7 +1202,9 @@ export function WorkOrderPopup({
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                           >
-                            {summaryData.operating_experience_summary}
+                            {summaryData.operating_experience_summary
+                              ? summaryData.operating_experience_summary
+                              : "We're working on the summary—check back soon!"}
                           </ReactMarkdown>
                         </div>
                         {summaryData.oe_sources && summaryData.oe_sources.length > 0 && (
@@ -1242,7 +1246,9 @@ export function WorkOrderPopup({
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                           >
-                            {summaryData.hpt_rules_summary}
+                            {summaryData.hpt_rules_summary
+                              ? summaryData.hpt_rules_summary
+                              : "We're working on the summary—check back soon!"}
                           </ReactMarkdown>
                         </div>
                         <DownloadableTags 
@@ -1282,7 +1288,9 @@ export function WorkOrderPopup({
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                           >
-                            {summaryData.similar_wo_summary}
+                            {summaryData.similar_wo_summary
+                              ? summaryData.similar_wo_summary
+                              : "We're working on the summary—check back soon!"}
                           </ReactMarkdown>
                         </div>
                         <FeedbackButtonsOnly summaryType="similar_wo" />
@@ -1296,7 +1304,7 @@ export function WorkOrderPopup({
 
               <AccordionItem value="good-catch-summary" className="bg-white">
                 <AccordionTrigger className="text-base font-medium">
-                  Good Catch Summary
+                  Good Catch Summary  (Experimental)
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2 text-sm">
@@ -1314,15 +1322,19 @@ export function WorkOrderPopup({
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                           >
-                            {summaryData.good_catch_summary}
+                            {summaryData.good_catch_summary
+                              ? summaryData.good_catch_summary
+                              : "We're working on the summary—check back soon!"}
                           </ReactMarkdown>
                         </div>
                         {summaryData.good_catch_sources && summaryData.good_catch_sources.length > 0 && (
                           <DownloadableTags
                             sources={summaryData.good_catch_sources}
                             title="Good Catch Documents"
+                            disabled={true}
                           />
                         )}
+                        <FeedbackButtonsOnly summaryType="goodcatch" />
                       </>
                     ) : (
                       <p>No good catch summary available for this work order.</p>
@@ -1379,6 +1391,9 @@ export function WorkOrderPopup({
             <AlertDialogTitle>Confirm Action</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to {actionType === 'approve' ? 'approve' : 'reject'} work order #{workOrder.WorkOrderId}?
+              {actionType === 'reject' && (
+                <span className="block mb-2 "><b>Please note:</b> The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID {workOrder.WorkOrderId}.</span>
+              )}
               {actionType === 'reject' && (
                 <span className="block mt-2 font-medium text-red-600">
                   This action will mark the work order as rejected.

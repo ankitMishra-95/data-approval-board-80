@@ -122,11 +122,6 @@ export function DataTable() {
         limit: itemsPerPage.toString(),
       });
 
-      // Add search query
-      if (debouncedSearchQuery.trim()) {
-        params.append('search', debouncedSearchQuery.trim());
-      }
-
       // Add filters
       Object.entries(activeFilters).forEach(([field, value]) => {
         if (value) {
@@ -179,7 +174,7 @@ export function DataTable() {
       }
       fetchData(currentPage);
     }
-  }, [currentPage, debouncedSearchQuery, activeFilters, sortConfig, isInitialLoad]);
+  }, [currentPage, activeFilters, sortConfig, isInitialLoad]);
 
   // Handlers
   const handlePageChange = (page: number) => {
@@ -337,6 +332,8 @@ export function DataTable() {
     }
   };
 
+  const filteredData = searchQuery.trim() ? data.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(searchQuery.toLowerCase()))) : data;
+
   return (
     <div className="w-full">
       <div className="mb-4 mt-4 flex flex-wrap gap-2 justify-end px-4">
@@ -485,8 +482,8 @@ export function DataTable() {
                       ))}
                     </tr>
                   ))
-                ) : data.length > 0 ? (
-                  data.map((item) => (
+                ) : filteredData.length > 0 ? (
+                  filteredData.map((item) => (
                     <tr key={item.WorkOrderId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 cursor-pointer hover:underline" onClick={() => openWorkOrderPopup(item)}>
                         {item.WorkOrderId}
