@@ -106,6 +106,7 @@ interface ApprovalDetails {
   message: string | null;
   workorder_id: string;
   status: string;
+  comment?: string;
   action_by: {
     id: string;
     email: string;
@@ -1128,6 +1129,27 @@ export function WorkOrderPopup({
           
           <Separator />
           
+          {/* Display rejection comment if status is REJECTED */}
+          {approvalDetails && 
+           approvalDetails.status && 
+           approvalDetails.status.toUpperCase() === 'REJECTED' && 
+           approvalDetails.comment && (
+            <div className="py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-red-800 mb-2">
+                      Rejection Comment
+                    </h4>
+                    <p className="text-sm text-red-700 whitespace-pre-wrap">
+                      {approvalDetails.comment}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="py-4">
             <h3 className="text-lg font-semibold mb-4 pb-2 border-b-2 border-blue-200 text-blue-900 flex items-center justify-between">
               Required Reviews
@@ -1392,7 +1414,7 @@ export function WorkOrderPopup({
             <AlertDialogDescription>
               Are you sure you want to {actionType === 'approve' ? 'approve' : 'reject'} work order #{workOrder.WorkOrderId}?
               {actionType === 'reject' && (
-                <span className="block mb-2 "><b>Please note:</b> The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID {workOrder.WorkOrderId}.</span>
+                <span className="block mb-2 mt-2"><b>Please note:</b> The job briefing document must be manually prepared and uploaded to D365 F&O for Work Order ID {workOrder.WorkOrderId}.</span>
               )}
               {actionType === 'reject' && (
                 <span className="block mt-2 font-medium text-red-600">
