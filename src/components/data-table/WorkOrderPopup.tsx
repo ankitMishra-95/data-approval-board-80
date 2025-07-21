@@ -593,7 +593,7 @@ export function WorkOrderPopup({
           if (errorData && errorData.detail) {
             errorMsg = errorData.detail;
           }
-        } catch (e) { /* ignore JSON parse error */ }
+        } catch (e) { /* intentionally ignored: error parsing error response */ }
         throw new Error(errorMsg);
       }
 
@@ -860,7 +860,7 @@ export function WorkOrderPopup({
         try {
           const errorData = await response.json();
           if (errorData && errorData.detail) errorMsg = errorData.detail;
-        } catch (e) {}
+        } catch (e) { /* intentionally ignored: error parsing error response */ }
         throw new Error(errorMsg);
       }
       toast.success('Good Catch feedback submitted successfully!');
@@ -1134,8 +1134,8 @@ export function WorkOrderPopup({
            approvalDetails.status && 
            approvalDetails.status.toUpperCase() === 'REJECTED' && 
            approvalDetails.comment && (
-            <div className="py-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="pt-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <h4 className="text-sm font-semibold text-red-800 mb-2">
